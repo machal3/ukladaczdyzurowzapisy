@@ -1,4 +1,4 @@
-// Zapisy na dyżury: osoba (6-cyfrowy PIN) ustawia własną dostępność, prośby i komentarze do miesięcy
+// Zapisy na dyżury: osoba (4-cyfrowy PIN) ustawia własną dostępność, prośby i komentarze do miesięcy
 // oraz ogląda grafik (same imiona na miejscach). Limity, minima i dostępność innych zostają w bazie (supabase-zapisy.sql).
 import { dateKey, daysInMonth, weekday, LEVELS, BAD, badOf, availOf, setLevel, nextLevel, monthSummary, wantRows, parseWant, deadline, monthKey, myShifts } from './kalendarz.js';
 import { hasSession, login, load, logout, save, SessionError } from './api.js';
@@ -47,8 +47,8 @@ async function start() {
 
 function ask(msg) {
   document.body.innerHTML = `<main class="login"><h1>Zapisy na dyżury</h1><form>
-    <label for="pin">Twój PIN (6 cyfr)</label>
-    <input id="pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="current-password" required autofocus>
+    <label for="pin">Twój PIN (4 cyfry)</label>
+    <input id="pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]{4}([0-9]{2})?" maxlength="6" autocomplete="current-password" required autofocus>
     <button>Wejdź</button><p role="status"></p></form></main>`;
   document.querySelector('.login [role=status]').textContent = msg;
   return new Promise((resolve) => document.querySelector('.login form').addEventListener('submit', (e) => {
@@ -75,8 +75,8 @@ function renderAvail() {
   let html = DAY_NAMES.map((d) => `<div class="dow">${d}</div>`).join('');
   html += '<div class="cell empty"></div>'.repeat(weekday(y, m, 1));
   for (let d = 1; d <= daysInMonth(y, m); d++) {
-    const key = dateKey(y, m, d), lvl = availOf(avail, key), wd = weekday(y, m, d), ok = editable(key);
-    html += `<div class="cell ${key === todayKey ? 'today' : ''} ${ok ? '' : 'past'}">
+    const key = dateKey(y, m, d), lvl = availOf(avail, key), wd = weekday(y, m, d), ok = editable(key), b = badOf(bad, y, m, d);
+    html += `<div class="cell burden-${b} ${key === todayKey ? 'today' : ''} ${ok ? '' : 'past'}" title="${BAD[b]} dzień">
       <div class="day-heading"><div class="num" aria-hidden="true">${d}</div><span class="day-name">${DAY_NAMES[wd]}</span>${key === todayKey ? '<span class="today-label">Dzisiaj</span>' : ''}</div>
       <div class="day-slots"><button class="avail lvl-${lvl}" data-avail="${key}" ${ok ? '' : 'disabled'} aria-label="${DAY_NAMES[wd]}, ${d} ${monthName(v)}: ${LEVELS[lvl]}${ok ? '' : ' (zapisy zamknięte)'}">${LEVELS[lvl]}</button></div></div>`;
   }

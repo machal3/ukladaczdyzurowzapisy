@@ -58,7 +58,7 @@ const typePin = async ({ w, $, tick }, pin) => {
 
 test('PIN: zły → komunikat, dobry → kalendarz; w przeglądarce tylko token', async (t) => {
   const s = await setup(t);
-  await typePin(s, '111111');
+  await typePin(s, '1111');
   for (let i = 0; i < 20 && !s.$('.login [role=status]')?.textContent; i++) await s.tick();
   assert.equal(s.$('.login [role=status]').textContent, 'Zły PIN.');
   await typePin(s, '404373');

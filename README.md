@@ -1,7 +1,7 @@
 # Zapisy na dyżury
 
 Osobna aplikacja dla osób dyżurujących, do [Układacza dyżurów](https://github.com/machal3/ukladaczdyzurow).
-Każda osoba loguje się **własnym 6-cyfrowym PIN-em** i może:
+Każda osoba loguje się **własnym 4-cyfrowym PIN-em** i może:
 
 - zaznaczyć w kalendarzu, kiedy może / chce / musi / nie może dyżurować (te same poziomy co w Układaczu) —
   **na dany miesiąc do 20. dnia poprzedniego miesiąca**, później miesiąc jest tylko do podglądu,
@@ -22,7 +22,7 @@ nie wychodzą z bazy. Z grafiku dostaje tylko imiona na miejscach i gównianoś�
 | Uprawnienia | Supabase domyślnie daje rolom `anon`/`authenticated` `execute` na nowe funkcje — SQL odbiera je wprost (nie tylko `public`); `sql.test.js` odtwarza te domyślne uprawnienia. Klucz w `config.js` to klucz publishable (publiczny z założenia); klucza `secret`/`service_role` nie ma w repo. |
 | PIN | w bazie tylko HMAC-SHA256 z losowym pepperem (`zapisy_sekret`); unikalny. Do przeglądarki nie wraca i nie jest w niej zapisywany. |
 | Sesja | po zalogowaniu losowy token (32 bajty) w `localStorage`, w bazie jego sha256; ważny 90 dni. Wyloguj / nowy PIN / usunięcie konta lub osoby = koniec sesji. |
-| Zgadywanie PIN-u | 5 złych prób / 15 min z jednego adresu, 100 złych prób / 24 h łącznie → logowanie wstrzymane (zalogowani pracują dalej), 1 s przerwy po złej próbie, próby po kolei. Szansa trafienia czyjegoś PIN-u przy ciągłym ataku ≈ 0,3% na dobę. |
+| Zgadywanie PIN-u | 5 złych prób / 15 min z jednego adresu, 100 złych prób / 24 h łącznie → logowanie wstrzymane (zalogowani pracują dalej), 1 s przerwy po złej próbie, próby po kolei. Szansa trafienia czyjegoś PIN-u przy ciągłym ataku ≈ 30% na dobę (4 cyfry, ~30 kont) — PIN chroni przed przypadkiem, nie przed uporem. |
 | Zapis | serwer sprawdza każdą datę (format, miesiąc otwarty — termin 20. dnia poprzedniego miesiąca, opcjonalnie `zapisyOd` — ≤ 400 dni naprzód), komentarze (miesiąc otwarty, ≤ 500 znaków), prośby (zamknięte od 21. do końca miesiąca), poziom 0–4, klucze próśb (tylko id miejsc i `* we d56 d4 d5 d6`), wartości 0–31. Przeszłe dni zostają takie, jakie były. |
 | Przeglądarka | CSP w `vercel.json` (skrypty tylko własne, połączenia tylko do Supabase), `no-referrer`, `nosniff`; tekst z bazy zawsze przez `esc()`/`textContent`. |
 | Korekty administratora | Układacz nie zmienia wpisów osoby: swoje zmiany dostępności i próśb trzyma obok, w `data.availAdm`/`data.wantsAdm`. Mają pierwszeństwo przy układaniu, ale `osoba_load` ich nie wysyła — osoba widzi tylko to, co sama wpisała (`sql.test.js`). |

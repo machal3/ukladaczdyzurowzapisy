@@ -45,11 +45,11 @@ async function setup() {
 test('logowanie PIN-em, sesja i dane tylko tej osoby', async () => {
   const { call, ip } = await setup();
   await ip('1.1.1.1');
-  assert.deepEqual(await call('admin_set_pin', ADMIN, 'ania', '404373'), {});
-  assert.match((await call('admin_set_pin', ADMIN, 'jan', '404373')).error, /zajęty/);
-  assert.match((await call('admin_set_pin', ADMIN, 'jan', '12345')).error, /6 cyfr/);
-  assert.match((await call('admin_set_pin', '0000', 'jan', '333190')).error, /Zły PIN/);
-  const { token, name } = await call('osoba_login', '404373');
+  assert.deepEqual(await call('admin_set_pin', ADMIN, 'ania', '4043'), {});
+  assert.match((await call('admin_set_pin', ADMIN, 'jan', '4043')).error, /zajęty/);
+  assert.match((await call('admin_set_pin', ADMIN, 'jan', '12345')).error, /4 cyfry/);
+  assert.match((await call('admin_set_pin', '0000', 'jan', '3319')).error, /Zły PIN/);
+  const { token, name } = await call('osoba_login', '4043');
   assert.equal(name, 'Anna Kowalska');
   assert.match(token, /^[0-9a-f]{64}$/);
   const me = await call('osoba_load', token);
@@ -63,7 +63,7 @@ test('logowanie PIN-em, sesja i dane tylko tej osoby', async () => {
   assert.equal(me.grafik[`${month(-3)}-10`], undefined);
   assert.equal(me.grafik[`${month(1)}-02`], undefined);
   assert.equal(me.grafik[`${month(2)}-02`], undefined, 'miesiąc niegotowy — osoby go nie widzą');
-  assert.deepEqual(me.bad, { [`${month(0)}-15`]: 3, [`${month(1)}-03`]: 0 }, 'gównianość tylko z gotowych miesięcy grafiku');
+  assert.deepEqual(me.bad, { [`${month(0)}-15`]: 3, [`${month(1)}-03`]: 0, [`${month(2)}-02`]: 3 }, 'gównianość od poprzedniego miesiąca, też bez gotowego grafiku');
   const text = JSON.stringify({ ...me, grafik: null });
   for (const secret of ['Jan', 'jan', 'limits', 'mins', 'rules', 'schedule', '"6"', 'Ex Osoba', 'Adm', day(9)]) assert.ok(!text.includes(secret), secret);
   assert.match((await call('osoba_load', 'f'.repeat(64))).error, /Sesja/);
@@ -86,8 +86,8 @@ test('termin: miesiąc otwarty do 20. dnia poprzedniego miesiąca', async () => 
 test('zapis: walidacja, zamknięte miesiące nietykalne, inne pola stanu bez zmian', async () => {
   const { call, ip, state, od } = await setup();
   await ip('1.1.1.2');
-  await call('admin_set_pin', ADMIN, 'ania', '404373');
-  const { token } = await call('osoba_login', '404373');
+  await call('admin_set_pin', ADMIN, 'ania', '4043');
+  const { token } = await call('osoba_login', '4043');
   const before = await state();
   const closed = plus(od, -1), om = od.slice(0, 7), { prosby } = await call('osoba_load', token);
   assert.deepEqual(await call('osoba_save', token, { [day(-3)]: 3, [closed]: 4, [od]: 0, [plus(od, 1)]: 2, [plus(od, 2)]: 4 }, { oitn: 3, '*': 5, we: null },
@@ -112,8 +112,8 @@ test('zapis: walidacja, zamknięte miesiące nietykalne, inne pola stanu bez zmi
 test('po terminie najbliższego miesiąca prośby i komentarze zamkniętych miesięcy zostają bez zmian', async () => {
   const { call, ip, state, db } = await setup();
   await ip('1.1.1.5');
-  await call('admin_set_pin', ADMIN, 'ania', '404373');
-  const { token } = await call('osoba_login', '404373');
+  await call('admin_set_pin', ADMIN, 'ania', '4043');
+  const { token } = await call('osoba_login', '4043');
   const s = await state();
   s.wants.ania = { oitn: 2 };
   s.uwagi = { ania: { [month(2)]: 'stary' } };
@@ -129,9 +129,9 @@ test('po terminie najbliższego miesiąca prośby i komentarze zamkniętych mies
 test('save_state Układacza nie nadpisuje zmian osoby zrobionych po wczytaniu', async () => {
   const { call, ip, state, db, od } = await setup();
   await ip('1.1.1.3');
-  await call('admin_set_pin', ADMIN, 'ania', '404373');
+  await call('admin_set_pin', ADMIN, 'ania', '4043');
   const loaded = (await call('load_state', ADMIN)).data; // Układacz wczytał dane
-  const { token } = await call('osoba_login', '404373');
+  const { token } = await call('osoba_login', '4043');
   const { prosby } = await call('osoba_load', token);
   await call('osoba_save', token, { [od]: 3 }, { oitn: 2 }, { [od.slice(0, 7)]: 'uwaga' }); // osoba zmienia
   loaded.avail.jan = { [day(8)]: 0 }; // Układacz zmienia kogoś innego i zapisuje stary stan Ani
@@ -156,29 +156,29 @@ test('save_state Układacza nie nadpisuje zmian osoby zrobionych po wczytaniu', 
 
 test('limity prób: 5 złych z jednego adresu, osoba usunięta nie wejdzie', async () => {
   const { call, ip, db } = await setup();
-  await call('admin_set_pin', ADMIN, 'ania', '404373');
-  await call('admin_set_pin', ADMIN, 'old', '333190');
+  await call('admin_set_pin', ADMIN, 'ania', '4043');
+  await call('admin_set_pin', ADMIN, 'old', '3319');
   await ip('9.9.9.9');
-  assert.match((await call('osoba_login', '333190')).error, /nieaktywne/);
+  assert.match((await call('osoba_login', '3319')).error, /nieaktywne/);
   assert.match((await call('osoba_login', 'abc')).error, /Zły PIN/);
   // przyspieszenie: pozostałe złe próby wpisane wprost (każda prawdziwa trwa 1 s)
   await db.query(`insert into public.zapisy_fails (ip) select '9.9.9.9' from generate_series(1, 4)`);
-  assert.match((await call('osoba_login', '404373')).error, /Za dużo/);
+  assert.match((await call('osoba_login', '4043')).error, /Za dużo/);
   await ip('8.8.8.8');
-  assert.ok((await call('osoba_login', '404373')).token);
+  assert.ok((await call('osoba_login', '4043')).token);
   await db.query(`insert into public.zapisy_fails (ip) select 'x' || g from generate_series(1, 100) g`);
-  assert.match((await call('osoba_login', '404373')).error, /wstrzymane/);
+  assert.match((await call('osoba_login', '4043')).error, /wstrzymane/);
   assert.equal((await call('admin_konta', ADMIN)).fails24h, 105);
 });
 
 test('zmiana PIN-u i usunięcie konta unieważniają sesje; tabele zamknięte dla anon', async () => {
   const { call, ip, db } = await setup();
   await ip('1.1.1.4');
-  await call('admin_set_pin', ADMIN, 'ania', '404373');
-  const { token } = await call('osoba_login', '404373');
-  await call('admin_set_pin', ADMIN, 'ania', '424977');
+  await call('admin_set_pin', ADMIN, 'ania', '4043');
+  const { token } = await call('osoba_login', '4043');
+  await call('admin_set_pin', ADMIN, 'ania', '4249');
   assert.match((await call('osoba_load', token)).error, /Sesja/);
-  const t2 = (await call('osoba_login', '424977')).token;
+  const t2 = (await call('osoba_login', '4249')).token;
   await call('admin_usun_konto', ADMIN, 'ania');
   assert.match((await call('osoba_load', t2)).error, /Sesja/);
   const konta = (await call('admin_konta', ADMIN)).konta;
@@ -188,5 +188,5 @@ test('zmiana PIN-u i usunięcie konta unieważniają sesje; tabele zamknięte dl
     await assert.rejects(db.query(`select * from public.${t}`), /permission denied/, t);
   for (const f of [`pin_hash('1')`, `osoba_sesja('1')`, `check_pin('1')`, `zapisy_od('{}')`, `zapisy_grafik('{}')`])
     await assert.rejects(db.query(`select public.${f}`), /permission denied/, f);
-  assert.match((await call('osoba_login', '000000')).error, /Zły PIN/); // anon może tylko przez funkcje
+  assert.match((await call('osoba_login', '0000')).error, /Zły PIN/); // anon może tylko przez funkcje
 });

@@ -68,10 +68,10 @@ begin
   return v_pid;
 end $fn$ language plpgsql stable security definer set search_path = '';
 
--- Limity prób (sam PIN: ~30 kont na milion kombinacji, więc to główna ochrona):
+-- Limity prób (sam PIN: ~30 kont na 10 tys. kombinacji, więc to główna ochrona):
 --   5 złych prób / 15 min z jednego adresu, 100 złych prób / 24 h łącznie → logowanie wstrzymane dla wszystkich
 --   (zalogowane sesje działają dalej). Próby po kolei (blokada) z 1 s przerwy po złej, więc równoległość nic nie daje.
--- Przy tych limitach trafienie czyjegoś PIN-u to ok. 100 × 30 / 10⁶ ≈ 0,3% na dobę ciągłego ataku.
+-- Przy tych limitach trafienie czyjegoś PIN-u to ok. 100 × 30 / 10⁴ ≈ 30% na dobę ciągłego ataku.
 -- ponytail: adres z nagłówków proxy (cf-connecting-ip / x-forwarded-for) da się czasem podrobić — dlatego twardą
 -- granicą jest limit globalny — gdyby to nie wystarczało: logowanie nazwiskiem + PIN-em.
 create function public.osoba_login(p text) returns jsonb as $fn$
@@ -87,7 +87,8 @@ begin
   if (select count(*) from public.zapisy_fails where ip = v_ip and at > now() - interval '15 minutes') >= 5 then
     return jsonb_build_object('error', 'Za dużo nieudanych prób. Spróbuj za 15 minut.');
   end if;
-  if p ~ '^\d{6}$' then select k.pid into v_pid from public.konta k where k.pin_hash = public.pin_hash(p); end if;
+  -- ponytail: stare 6-cyfrowe PIN-y działają do wymiany na 4-cyfrowe; potem wystarczy '^\d{4}$'
+  if p ~ '^\d{4}(\d{2})?$' then select k.pid into v_pid from public.konta k where k.pin_hash = public.pin_hash(p); end if;
   if v_pid is null then
     delete from public.zapisy_fails where at < now() - interval '2 days';
     insert into public.zapisy_fails (ip) values (v_ip);
@@ -148,11 +149,11 @@ begin
     'od', public.zapisy_od(d),
     'prosby', public.zapisy_od(d) <= (date_trunc('month', (now() at time zone 'Europe/Warsaw')::date) + interval '1 month')::date,
     'grafik', public.zapisy_grafik(d),
-    -- gównianość dni 0–3 ustawiona ręcznie w Układaczu (data.bad), tylko dni miesięcy z grafikiem do podglądu;
-    -- domyślną (wg dnia tygodnia) liczy klient — badOf w kalendarz.js
+    -- gównianość dni 0–3 ustawiona ręcznie w Układaczu (data.bad), od poprzedniego miesiąca do roku naprzód — także miesiące
+    -- bez gotowego grafiku, żeby przy zapisach było widać ciężkie dni; domyślną (wg dnia tygodnia) liczy klient — badOf w kalendarz.js
     'bad', (select coalesce(jsonb_object_agg(b.key, b.value), '{}')
             from jsonb_each(case when jsonb_typeof(d->'bad') = 'object' then d->'bad' else '{}' end) b
-            where b.key ~ '^\d{4}-\d{2}-\d{2}$' and d->'gotowe'->left(b.key, 7) = 'true' and b.value::text in ('0', '1', '2', '3')
+            where b.key ~ '^\d{4}-\d{2}-\d{2}$' and b.value::text in ('0', '1', '2', '3')
               and b.key >= to_char(date_trunc('month', (now() at time zone 'Europe/Warsaw')::date) - interval '1 month', 'YYYY-MM-DD')
               and b.key < to_char((now() at time zone 'Europe/Warsaw')::date + 366, 'YYYY-MM-DD')));
 end $fn$ language plpgsql stable security definer set search_path = '';
@@ -243,7 +244,7 @@ create function public.admin_set_pin(p text, osoba text, nowy text) returns json
 declare err text := public.check_pin(p);
 begin
   if err is not null then return jsonb_build_object('error', err); end if;
-  if nowy !~ '^\d{6}$' then return jsonb_build_object('error', 'PIN musi mieć 6 cyfr'); end if;
+  if nowy !~ '^\d{4}$' then return jsonb_build_object('error', 'PIN musi mieć 4 cyfry'); end if;
   if not exists (select 1 from public.dyzury d, jsonb_array_elements(d.data->'people') e where d.id = 1 and e->>'id' = osoba) then
     return jsonb_build_object('error', 'Nie ma takiej osoby');
   end if;

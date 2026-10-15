@@ -5,7 +5,7 @@ Wklej poniższy tekst w nowej sesji Claude Code w repozytorium Układacza.
 ---
 
 Dodaj integrację z osobną aplikacją „Zapisy na dyżury” (repo `machal3/ukladaczdyzurowzapisy`), w której każda
-osoba swoim 6-cyfrowym PIN-em ustawia własną dostępność (`state.avail[pid]`; na miesiąc do 20. dnia poprzedniego),
+osoba swoim 4-cyfrowym PIN-em ustawia własną dostępność (`state.avail[pid]`; na miesiąc do 20. dnia poprzedniego),
 prośby (`state.wants[pid]`) i komentarze do miesięcy (`state.uwagi[pid]['YYYY-MM'] = tekst`), a także ogląda
 grafik (same imiona na miejscach).
 Funkcje bazy (`konta`, `sesje`, `osoba_*`, `admin_*`) są w `supabase-zapisy.sql` tamtego repo. Zapisy zmieniają
@@ -25,7 +25,7 @@ Funkcje bazy (`konta`, `sesje`, `osoba_*`, `admin_*`) są w `supabase-zapisy.sql
 4. **Okno osoby (⚙)**, tylko w trybie chmury — nowa karta „Konto w Zapisach”:
    - stan z `admin_konta(p)` (pobierz raz przy otwarciu okna): „ma PIN” / „bez konta”, ostatnie logowanie,
      ostatnia zmiana w Zapisach,
-   - „Nadaj nowy PIN”: losuje 6 cyfr przez `crypto.getRandomValues` (odrzuć słabe: ≤ 2 różne cyfry, ciągi
+   - „Nadaj nowy PIN”: losuje 4 cyfry przez `crypto.getRandomValues` (odrzuć słabe: ≤ 2 różne cyfry, ciągi
      rosnące/malejące, `abcabc`), woła `admin_set_pin(p, osoba, nowy)`, przy błędzie „zajęty” losuje ponownie;
      pokazuje PIN **raz** w oknie z przyciskiem „Skopiuj” i uwagą, że stary PIN i sesje przestały działać,
    - „Usuń konto” (confirm) → `admin_usun_konto(p, osoba)`.
