@@ -14,7 +14,10 @@ const month = (n) => { const d = new Date(); d.setUTCDate(1); d.setUTCMonth(d.ge
 
 async function setup() {
   const db = new PGlite({ extensions: { pgcrypto } });
-  await db.exec(`create role anon; create role authenticated; create schema extensions;`);
+  // jak w Supabase: anon/authenticated dostają domyślnie dostęp do nowych tabel i funkcji w public — SQL musi go odebrać
+  await db.exec(`create role anon; create role authenticated; create schema extensions;
+    alter default privileges in schema public grant all on tables to anon, authenticated;
+    alter default privileges in schema public grant execute on functions to anon, authenticated;`);
   await db.exec(await sql('./ukladacz/supabase.sql'));
   await db.exec(await sql('./supabase-zapisy.sql'));
   await db.exec(await sql('./supabase-zapisy.sql')); // można puścić ponownie (pepper zostaje)
@@ -46,7 +49,7 @@ test('logowanie PIN-em, sesja i dane tylko tej osoby', async () => {
   assert.equal(name, 'Anna Kowalska');
   assert.match(token, /^[0-9a-f]{64}$/);
   const me = await call('osoba_load', token);
-  assert.deepEqual(Object.keys(me).sort(), ['avail', 'grafik', 'name', 'od', 'shifts', 'uwagi', 'wants']);
+  assert.deepEqual(Object.keys(me).sort(), ['avail', 'grafik', 'name', 'od', 'prosby', 'shifts', 'uwagi', 'wants']);
   assert.deepEqual(me.shifts, [{ id: 'oitn', name: 'OITN', days: [0, 1, 2, 3, 4, 5, 6] }]);
   assert.deepEqual(me.avail, { [day(-3)]: 0 });
   // grafik: tylko imiona na istniejących miejscach, od poprzedniego miesiąca; nieznane miejsca/osoby pominięte
@@ -79,13 +82,13 @@ test('zapis: walidacja, zamknięte miesiące nietykalne, inne pola stanu bez zmi
   await call('admin_set_pin', ADMIN, 'ania', '404373');
   const { token } = await call('osoba_login', '404373');
   const before = await state();
-  const closed = plus(od, -1);
+  const closed = plus(od, -1), om = od.slice(0, 7), { prosby } = await call('osoba_load', token);
   assert.deepEqual(await call('osoba_save', token, { [day(-3)]: 3, [closed]: 4, [od]: 0, [plus(od, 1)]: 2, [plus(od, 2)]: 4 }, { oitn: 3, '*': 5, we: null },
-    { [month(-1)]: 'stary', [month(0)]: 'w tym miesiącu wolę OITN', [month(2)]: '   ' }), {});
+    { [closed.slice(0, 7)]: 'po terminie', [om]: 'wolę OITN', [month(3)]: '   ' }), {});
   const after = await state();
   assert.deepEqual(after.avail.ania, { [day(-3)]: 0, [od]: 0, [plus(od, 2)]: 4 }); // zamknięte z bazy, „Mogę” bez wpisu
-  assert.deepEqual(after.wants.ania, { oitn: 3, '*': 5 });
-  assert.deepEqual(after.uwagi.ania, { [month(0)]: 'w tym miesiącu wolę OITN' }); // przeszły miesiąc i puste pominięte
+  assert.deepEqual(after.wants.ania, prosby ? { oitn: 3, '*': 5 } : {}); // od 21. prośby zamknięte (test niżej)
+  assert.deepEqual(after.uwagi.ania, { [om]: 'wolę OITN' }); // zamknięty miesiąc i puste pominięte
   assert.ok(after.stamps.ania);
   for (const k of ['people', 'shifts', 'limits', 'mins', 'rules', 'schedule']) assert.deepEqual(after[k], before[k], k);
   assert.deepEqual(after.avail.jan, before.avail.jan);
@@ -94,9 +97,26 @@ test('zapis: walidacja, zamknięte miesiące nietykalne, inne pola stanu bez zmi
     [{ 'x': 1 }, {}, /data/], [{}, { limits: 1 }, /Nieznana/], [{}, { oitn: 40 }, /0–31/], [{}, { oitn: -1 }, /0–31/], [{}, { oitn: 1.5 }, /0–31/],
     [[], {}, /Nieprawidłowe/],
   ]) assert.match((await call('osoba_save', token, a, w, {})).error, why, JSON.stringify([a, w]));
-  for (const [c, why] of [[{ [month(0)]: 'x'.repeat(501) }, /500/], [{ [month(0)]: 5 }, /500/], [{ '2026-13': 'a' }, /miesiąc/], [{ [month(14)]: 'a' }, /miesiąc/], [[], /Nieprawidłowe/]])
+  for (const [c, why] of [[{ [om]: 'x'.repeat(501) }, /500/], [{ [om]: 5 }, /500/], [{ '2026-13': 'a' }, /miesiąc/], [{ [month(14)]: 'a' }, /miesiąc/], [[], /Nieprawidłowe/]])
     assert.match((await call('osoba_save', token, {}, {}, c)).error, why, JSON.stringify(c));
   assert.deepEqual((await state()).avail.ania, after.avail.ania);
+});
+
+test('po terminie najbliższego miesiąca prośby i komentarze zamkniętych miesięcy zostają bez zmian', async () => {
+  const { call, ip, state, db } = await setup();
+  await ip('1.1.1.5');
+  await call('admin_set_pin', ADMIN, 'ania', '404373');
+  const { token } = await call('osoba_login', '404373');
+  const s = await state();
+  s.wants.ania = { oitn: 2 };
+  s.uwagi = { ania: { [month(2)]: 'stary' } };
+  s.zapisyOd = month(3); // Układacz zamknął zapisy do month(3) — jak po 20. dla najbliższego miesiąca
+  await db.query('select public.save_state($1, $2)', [ADMIN, s]);
+  assert.equal((await call('osoba_load', token)).prosby, false);
+  assert.deepEqual(await call('osoba_save', token, {}, { oitn: 9 }, { [month(2)]: 'nowy', [month(3)]: 'ok' }), {});
+  const after = await state();
+  assert.deepEqual(after.wants.ania, { oitn: 2 });
+  assert.deepEqual(after.uwagi.ania, { [month(2)]: 'stary', [month(3)]: 'ok' });
 });
 
 test('save_state Układacza nie nadpisuje zmian osoby zrobionych po wczytaniu', async () => {
@@ -105,14 +125,15 @@ test('save_state Układacza nie nadpisuje zmian osoby zrobionych po wczytaniu', 
   await call('admin_set_pin', ADMIN, 'ania', '404373');
   const loaded = (await call('load_state', ADMIN)).data; // Układacz wczytał dane
   const { token } = await call('osoba_login', '404373');
-  await call('osoba_save', token, { [od]: 3 }, { oitn: 2 }, { [month(1)]: 'uwaga' }); // osoba zmienia
+  const { prosby } = await call('osoba_load', token);
+  await call('osoba_save', token, { [od]: 3 }, { oitn: 2 }, { [od.slice(0, 7)]: 'uwaga' }); // osoba zmienia
   loaded.avail.jan = { [day(8)]: 0 }; // Układacz zmienia kogoś innego i zapisuje stary stan Ani
   loaded.limits.ania = { '*': 4 };
   await db.query('select public.save_state($1, $2)', [ADMIN, loaded]);
   let s = await state();
   assert.deepEqual(s.avail.ania, { [day(-3)]: 0, [od]: 3 });
-  assert.deepEqual(s.wants.ania, { oitn: 2 });
-  assert.deepEqual(s.uwagi.ania, { [month(1)]: 'uwaga' });
+  assert.deepEqual(s.wants.ania, prosby ? { oitn: 2 } : {});
+  assert.deepEqual(s.uwagi.ania, { [od.slice(0, 7)]: 'uwaga' });
   assert.deepEqual(s.avail.jan, { [day(8)]: 0 });
   assert.deepEqual(s.limits.ania, { '*': 4 });
   // po odświeżeniu Układacz ma aktualny stamp — wtedy jego zmiana wygrywa
@@ -155,7 +176,7 @@ test('zmiana PIN-u i usunięcie konta unieważniają sesje; tabele zamknięte dl
   await db.exec('set role anon');
   for (const t of ['konta', 'sesje', 'zapisy_sekret', 'zapisy_fails', 'dyzury'])
     await assert.rejects(db.query(`select * from public.${t}`), /permission denied/, t);
-  await assert.rejects(db.query(`select public.pin_hash('1')`), /permission denied/);
-  await assert.rejects(db.query(`select public.osoba_sesja('1')`), /permission denied/);
+  for (const f of [`pin_hash('1')`, `osoba_sesja('1')`, `check_pin('1')`, `zapisy_od('{}')`, `zapisy_grafik('{}')`])
+    await assert.rejects(db.query(`select public.${f}`), /permission denied/, f);
   assert.match((await call('osoba_login', '000000')).error, /Zły PIN/); // anon może tylko przez funkcje
 });

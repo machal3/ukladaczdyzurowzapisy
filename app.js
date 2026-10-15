@@ -99,6 +99,7 @@ function renderAvail() {
   const key = monthKey(y, m), field = $('#comment-text');
   $('#comment-title').textContent = `Komentarz do moich dyżurów — ${monthName(v)}`;
   if (field.dataset.month !== key) { field.dataset.month = key; field.value = uwagi[key] ?? ''; }
+  field.disabled = !isOpen; // po terminie komentarz tylko do podglądu (baza i tak go nie zmieni)
   $('#comment-count').textContent = `${field.value.length}/${COMMENT_MAX}`;
 }
 
@@ -134,14 +135,17 @@ function renderGrafik() {
 
 function render() { renderMonth(); renderAvail(); renderGrafik(); }
 
+// Prośby nie są per miesiąc — po terminie najbliższego miesiąca (od 21.) zamknięte do 1. (pilnuje baza: me.prosby)
+const wantsOpen = me.prosby !== false;
 function renderWants() {
   const rows = wantRows(me.shifts);
   const row = (r) => `<tr><th scope="row">${esc(r.label)}${r.hint ? `<small>${r.hint}</small>` : ''}</th>` +
-    `<td><input type="number" min="0" max="31" step="1" inputmode="numeric" placeholder="—" data-want="${esc(r.key)}" value="${wants[r.key] ?? ''}" aria-label="Prośba: ${esc(r.label)}"></td></tr>`;
+    `<td><input type="number" min="0" max="31" step="1" inputmode="numeric" placeholder="—" data-want="${esc(r.key)}" value="${wants[r.key] ?? ''}" ${wantsOpen ? '' : 'disabled'} aria-label="Prośba: ${esc(r.label)}"></td></tr>`;
   const head = '<thead><tr><td></td><th scope="col">Prośba<small>ile dyżurów</small></th></tr></thead>';
   const group = (name, rs) => rs.length ? `<details class="limits-group" ${rs.some((r) => wants[r.key] != null) ? 'open' : ''}><summary><span>${name}</span>${CHEV}</summary>` +
     `<table class="counts">${head}<tbody>${rs.map(row).join('')}</tbody></table></details>` : '';
-  $('#wants').innerHTML = `<table class="counts">${head}<tbody>${rows.filter((r) => !r.group).map(row).join('')}</tbody></table>` +
+  $('#wants').innerHTML = (wantsOpen ? '' : `<p class="closed-msg">Termin zapisów na ${monthName(shift(ym(now), 1))} minął — prośby są tylko do podglądu, zmienisz je od 1. dnia następnego miesiąca.</p>`) +
+    `<table class="counts">${head}<tbody>${rows.filter((r) => !r.group).map(row).join('')}</tbody></table>` +
     group(`Na miejscach <small>${esc(me.shifts.map((s) => s.name).join(', '))}</small>`, rows.filter((r) => r.group === 'place')) +
     group('Weekendy w szczegółach <small>So + Nd, osobno Pt / So / Nd</small>', rows.filter((r) => r.group === 'we'));
 }

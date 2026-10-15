@@ -5,7 +5,7 @@ import { SourceTextModule } from 'node:vm';
 import { JSDOM } from 'jsdom';
 
 // Prawdziwe moduły i DOM; zamiast Supabase — fetch w pamięci, który zachowuje się jak funkcje z supabase-zapisy.sql.
-async function setup(t, { token = null } = {}) {
+async function setup(t, { token = null, prosby = true } = {}) {
   const dom = new JSDOM(await readFile(new URL('./index.html', import.meta.url), 'utf8'), {
     url: 'http://localhost/', runScripts: 'outside-only', pretendToBeVisual: true,
   });
@@ -27,7 +27,7 @@ async function setup(t, { token = null } = {}) {
     const ok = (data) => ({ ok: true, json: async () => data });
     if (fn === 'osoba_login') return ok(body.p === '404373' ? { token: 'a'.repeat(64), name: 'Anna Kowalska' } : { error: 'Zły PIN' });
     if (body.t !== 'a'.repeat(64)) return ok({ error: 'Sesja wygasła' });
-    if (fn === 'osoba_load') return ok({ name: 'Anna Kowalska', shifts: [{ id: 's1', name: 'OITN', days: [0, 1, 2, 3, 4, 5, 6] }, { id: 's2', name: 'PN1', days: [0, 1, 2, 3, 4, 5, 6] }], avail: db.avail, wants: db.wants, uwagi: db.uwagi, od, grafik: db.grafik });
+    if (fn === 'osoba_load') return ok({ name: 'Anna Kowalska', shifts: [{ id: 's1', name: 'OITN', days: [0, 1, 2, 3, 4, 5, 6] }, { id: 's2', name: 'PN1', days: [0, 1, 2, 3, 4, 5, 6] }], avail: db.avail, wants: db.wants, uwagi: db.uwagi, od, prosby, grafik: db.grafik });
     if (fn === 'osoba_save') { db.avail = body.a; db.wants = body.w; db.uwagi = body.c; return ok({}); }
     if (fn === 'osoba_logout') { db.loggedOut = true; return ok({}); }
     throw new Error(`Nieoczekiwane RPC ${fn}`);
@@ -149,6 +149,16 @@ test('prośby: wpis, czyszczenie i odrzucenie złej wartości', async (t) => {
   await s.tick();
   assert.deepEqual(s.db.wants, { s1: 3 });
   assert.equal(s.w.document.querySelectorAll('#wants input').length, 8); // Łącznie, Pt/So/Nd, 2 miejsca, So+Nd, Pt, So, Nd
+});
+
+test('po terminie: prośby i komentarz zamkniętego miesiąca tylko do podglądu', async (t) => {
+  const s = await setup(t, { token: 'a'.repeat(64), prosby: false });
+  await s.done;
+  assert.equal(s.$('#comment-text').disabled, false); // pierwszy otwarty miesiąc
+  s.$('#prev').click();
+  assert.equal(s.$('#comment-text').disabled, true);
+  assert.ok([...s.w.document.querySelectorAll('#wants input')].every((i) => i.disabled));
+  assert.match(s.$('#wants').textContent, /minął/);
 });
 
 test('wygasła sesja → ekran PIN-u; wylogowanie kasuje sesję w bazie', async (t) => {

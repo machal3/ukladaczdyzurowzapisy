@@ -29,7 +29,7 @@ body:not([data-tab=grafik]) #grafik-tab { display: none; }
 #status.closed { background: var(--md-sys-color-surface-container-high); }
 #status.closed .who b { color: var(--text); }
 #status.closed [data-go] { margin-left: auto; min-height: 40px; padding: 8px 18px; }
-#status .closed-msg { display: block; margin-top: 2px; color: var(--muted); }
+#status .closed-msg, #wants .closed-msg { display: block; margin-top: 2px; color: var(--muted); }
 #status .who { min-width: 0; }
 
 /* Komentarz do miesiąca */

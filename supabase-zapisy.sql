@@ -106,12 +106,13 @@ end $fn$ language plpgsql security definer set search_path = '';
 -- Pierwszy dzień, który osoba może zmieniać: zapisy na miesiąc trwają do 20. dnia poprzedniego miesiąca włącznie
 -- (czas polski), więc do 20. otwarty jest następny miesiąc, od 21. — dopiero ten po nim.
 -- data.zapisyOd ('YYYY-MM') z Układacza może zamknąć więcej miesięcy.
+-- Prośby (wants) nie są per miesiąc, więc obowiązują od najbliższego miesiąca — po jego terminie (od 21.) są zamknięte do 1.
 create function public.zapisy_od(d jsonb, dzis date default (now() at time zone 'Europe/Warsaw')::date) returns date as $fn$
   select greatest(
     (date_trunc('month', dzis) + case when extract(day from dzis) <= 20 then interval '1 month' else interval '2 months' end)::date,
     case when d->>'zapisyOd' ~ '^\d{4}-(0[1-9]|1[0-2])$' then (d->>'zapisyOd' || '-01')::date else '-infinity'::date end)
 $fn$ language sql stable set search_path = '';
-revoke execute on function public.zapisy_od(jsonb, date) from public;
+revoke execute on function public.zapisy_od(jsonb, date) from public, anon, authenticated;
 
 -- Grafik do podglądu: od 1. dnia poprzedniego miesiąca, najwyżej rok naprzód. Tylko { dzień: { id miejsca: imię } } —
 -- bez dostępności, wpisów ręcznych i czegokolwiek innego z grafiku.
@@ -129,7 +130,7 @@ create function public.zapisy_grafik(d jsonb) returns jsonb as $fn$
       and p->>'id' = slot.value and s->>'id' = slot.key
     group by day.key) g
 $fn$ language sql stable set search_path = '';
-revoke execute on function public.zapisy_grafik(jsonb) from public;
+revoke execute on function public.zapisy_grafik(jsonb) from public, anon, authenticated;
 
 create function public.osoba_load(t text) returns jsonb as $fn$
 declare v_pid text := public.osoba_sesja(t); d jsonb;
@@ -144,18 +145,20 @@ begin
     'wants', coalesce(d->'wants'->v_pid, '{}'),
     'uwagi', coalesce(d->'uwagi'->v_pid, '{}'),
     'od', public.zapisy_od(d),
+    'prosby', public.zapisy_od(d) <= (date_trunc('month', (now() at time zone 'Europe/Warsaw')::date) + interval '1 month')::date,
     'grafik', public.zapisy_grafik(d));
 end $fn$ language plpgsql stable security definer set search_path = '';
 
 -- Zapis całej dostępności i próśb osoby. Dni przed zapisy_od zostają takie, jak były (przysłane są pomijane).
 -- avail: { 'YYYY-MM-DD': 0|1|3|4 } (2 = „Mogę” = brak wpisu), najwyżej 400 dni naprzód.
 -- wants: { id miejsca | '*' | we | d56 | d4 | d5 | d6: 0–31 }.
--- c (komentarze): { 'YYYY-MM': tekst do 500 znaków } — od bieżącego miesiąca do roku naprzód, wcześniejsze zostają.
+-- Prośby po terminie najbliższego miesiąca zostają takie, jak były (patrz zapisy_od).
+-- c (komentarze): { 'YYYY-MM': tekst do 500 znaków } — od miesiąca zapisy_od do roku naprzód, wcześniejsze zostają.
 create function public.osoba_save(t text, a jsonb, w jsonb, c jsonb) returns jsonb as $fn$
 declare
   v_pid text := public.osoba_sesja(t); d jsonb; od date; k text; v jsonb; dt date;
   na jsonb := '{}'; nw jsonb := '{}'; nc jsonb := '{}'; allowed text[];
-  m0 text := to_char((now() at time zone 'Europe/Warsaw')::date, 'YYYY-MM');
+  m0 text; -- pierwszy miesiąc, którego komentarz można zmienić (jak dostępność)
   m1 text := to_char((now() at time zone 'Europe/Warsaw')::date + 366, 'YYYY-MM');
 begin
   if v_pid is null then return jsonb_build_object('error', 'Sesja wygasła'); end if;
@@ -164,6 +167,7 @@ begin
   end if;
   select data into d from public.dyzury where id = 1 for update; -- po kolei z zapisami Układacza
   od := public.zapisy_od(d);
+  m0 := to_char(od, 'YYYY-MM');
   -- stare wpisy sprzed od zostają
   for k, v in select * from jsonb_each(coalesce(d->'avail'->v_pid, '{}')) loop
     if k < to_char(od, 'YYYY-MM-DD') then na := na || jsonb_build_object(k, v); end if;
@@ -179,14 +183,16 @@ begin
   end loop;
   allowed := array['*', 'we', 'd56', 'd4', 'd5', 'd6'] ||
     array(select s->>'id' from jsonb_array_elements(coalesce(d->'shifts', '[]')) s);
-  for k, v in select * from jsonb_each(w) loop
+  if od > (date_trunc('month', (now() at time zone 'Europe/Warsaw')::date) + interval '1 month')::date then
+    nw := coalesce(d->'wants'->v_pid, '{}'); -- prośby zamknięte
+  else for k, v in select * from jsonb_each(w) loop
     if not k = any(allowed) then return jsonb_build_object('error', 'Nieznana prośba'); end if;
     if jsonb_typeof(v) = 'null' then continue; end if;
     if jsonb_typeof(v) <> 'number' or v::text !~ '^\d{1,2}$' or v::text::int > 31 then
       return jsonb_build_object('error', 'Prośba musi być liczbą 0–31');
     end if;
     nw := nw || jsonb_build_object(k, v);
-  end loop;
+  end loop; end if;
   for k, v in select * from jsonb_each(coalesce(d->'uwagi'->v_pid, '{}')) loop
     if k < m0 then nc := nc || jsonb_build_object(k, v); end if;
   end loop;
@@ -252,6 +258,6 @@ end $fn$ language plpgsql security definer set search_path = '';
 
 revoke execute on function public.pin_hash(text), public.osoba_sesja(text), public.osoba_login(text), public.osoba_load(text),
   public.osoba_save(text, jsonb, jsonb, jsonb), public.osoba_logout(text), public.admin_konta(text), public.admin_set_pin(text, text, text),
-  public.admin_usun_konto(text, text) from public;
+  public.admin_usun_konto(text, text) from public, anon, authenticated; -- Supabase nadaje anon/authenticated execute domyślnie
 grant execute on function public.osoba_login(text), public.osoba_load(text), public.osoba_save(text, jsonb, jsonb, jsonb), public.osoba_logout(text),
   public.admin_konta(text), public.admin_set_pin(text, text, text), public.admin_usun_konto(text, text) to anon;

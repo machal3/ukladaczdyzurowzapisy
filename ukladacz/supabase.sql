@@ -78,5 +78,5 @@ begin
   return '{}';
 end $fn$ language plpgsql security definer set search_path = '';
 
-revoke execute on function public.check_pin(text), public.load_state(text), public.save_state(text, jsonb) from public;
+revoke execute on function public.check_pin(text), public.load_state(text), public.save_state(text, jsonb) from public, anon, authenticated; -- Supabase nadaje anon execute domyślnie
 grant execute on function public.load_state(text), public.save_state(text, jsonb) to anon;
