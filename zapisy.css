@@ -18,3 +18,4 @@
   #save-state.error { max-width: 14ch; }
 }
 body:not([data-tab=calendar]) .month { display: none; } /* miesiąc dotyczy tylko kalendarza; prośby obowiązują co miesiąc */
+.login::before { content: none; } /* bez hasła z Układacza nad logowaniem */
