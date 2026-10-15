@@ -26,10 +26,13 @@ async function setup() {
     people: [{ id: 'ania', name: 'Anna Kowalska' }, { id: 'jan', name: 'Jan Nowak' }, { id: 'old', name: 'Ex Osoba', gone: true }],
     shifts: [{ id: 'oitn', name: 'OITN', days: [0, 1, 2, 3, 4, 5, 6] }],
     avail: { ania: { [day(-3)]: 0 }, jan: { [day(5)]: 3 } },
-    limits: { ania: { '*': 6 } }, mins: { ania: { '*': 2 } }, wants: {}, rules: [{ id: 'r', who: 'ania', with: 'jan', places: ['oitn'] }],
+    limits: { ania: { '*': 6 } }, mins: { ania: { '*': 2 } }, wants: {},
+    // korekty administratora (Układacz): obok wpisów osoby, osoba ich nigdy nie dostaje
+    availAdm: { ania: { [day(-3)]: 4, [day(9)]: 1 } }, wantsAdm: { ania: { oitn: 27 } }, rules: [{ id: 'r', who: 'ania', with: 'jan', places: ['oitn'] }],
     schedule: { [day(-3)]: { oitn: 'jan' }, [`${month(0)}-15`]: { oitn: 'ania' }, [`${month(0)}-16`]: { oitn: 'jan', zniknięte: 'ania' },
       [`${month(-3)}-10`]: { oitn: 'jan' }, [`${month(1)}-02`]: { oitn: 'nikt' }, [`${month(2)}-02`]: { oitn: 'ania' } },
     gotowe: { [month(-3)]: true, [month(0)]: true, [month(1)]: true }, // month(2) to jeszcze szkic
+    bad: { [`${month(0)}-15`]: 3, [`${month(1)}-03`]: 0, [`${month(2)}-02`]: 3, [`${month(-3)}-10`]: 2, [`${month(0)}-16`]: 'x', zle: 1 },
   };
   await db.query('select public.save_state($1, $2)', [ADMIN, data]);
   const call = async (fn, ...args) => (await db.query(`select public.${fn}(${args.map((_, i) => `$${i + 1}`).join(', ')}) as r`, args)).rows[0].r;
@@ -50,17 +53,19 @@ test('logowanie PIN-em, sesja i dane tylko tej osoby', async () => {
   assert.equal(name, 'Anna Kowalska');
   assert.match(token, /^[0-9a-f]{64}$/);
   const me = await call('osoba_load', token);
-  assert.deepEqual(Object.keys(me).sort(), ['avail', 'grafik', 'name', 'od', 'prosby', 'shifts', 'uwagi', 'wants']);
+  assert.deepEqual(Object.keys(me).sort(), ['avail', 'bad', 'grafik', 'name', 'od', 'prosby', 'shifts', 'uwagi', 'wants']);
   assert.deepEqual(me.shifts, [{ id: 'oitn', name: 'OITN', days: [0, 1, 2, 3, 4, 5, 6] }]);
   assert.deepEqual(me.avail, { [day(-3)]: 0 });
+  assert.deepEqual(me.wants, {}, 'bez korekty próśb');
   // grafik: tylko imiona na istniejących miejscach, od poprzedniego miesiąca; nieznane miejsca/osoby pominięte
   assert.deepEqual(me.grafik[`${month(0)}-15`], { oitn: 'Anna Kowalska' });
   assert.deepEqual(me.grafik[`${month(0)}-16`], { oitn: 'Jan Nowak' });
   assert.equal(me.grafik[`${month(-3)}-10`], undefined);
   assert.equal(me.grafik[`${month(1)}-02`], undefined);
   assert.equal(me.grafik[`${month(2)}-02`], undefined, 'miesiąc niegotowy — osoby go nie widzą');
+  assert.deepEqual(me.bad, { [`${month(0)}-15`]: 3, [`${month(1)}-03`]: 0 }, 'gównianość tylko z gotowych miesięcy grafiku');
   const text = JSON.stringify({ ...me, grafik: null });
-  for (const secret of ['Jan', 'jan', 'limits', 'mins', 'rules', 'schedule', '"6"', 'Ex Osoba']) assert.ok(!text.includes(secret), secret);
+  for (const secret of ['Jan', 'jan', 'limits', 'mins', 'rules', 'schedule', '"6"', 'Ex Osoba', 'Adm', day(9)]) assert.ok(!text.includes(secret), secret);
   assert.match((await call('osoba_load', 'f'.repeat(64))).error, /Sesja/);
   assert.match((await call('osoba_load', "' or 1=1 --")).error, /Sesja/);
   await call('osoba_logout', token);
@@ -92,7 +97,7 @@ test('zapis: walidacja, zamknięte miesiące nietykalne, inne pola stanu bez zmi
   assert.deepEqual(after.wants.ania, prosby ? { oitn: 3, '*': 5 } : {}); // od 21. prośby zamknięte (test niżej)
   assert.deepEqual(after.uwagi.ania, { [om]: 'wolę OITN' }); // zamknięty miesiąc i puste pominięte
   assert.ok(after.stamps.ania);
-  for (const k of ['people', 'shifts', 'limits', 'mins', 'rules', 'schedule']) assert.deepEqual(after[k], before[k], k);
+  for (const k of ['people', 'shifts', 'limits', 'mins', 'rules', 'schedule', 'availAdm', 'wantsAdm']) assert.deepEqual(after[k], before[k], k);
   assert.deepEqual(after.avail.jan, before.avail.jan);
   for (const [a, w, why] of [
     [{ [day(1)]: 5 }, {}, /poziom/], [{ [day(1)]: '3' }, {}, /poziom/], [{ '2026-02-30': 1 }, {}, /data/], [{ [day(500)]: 1 }, {}, /data/],
@@ -131,6 +136,7 @@ test('save_state Układacza nie nadpisuje zmian osoby zrobionych po wczytaniu', 
   await call('osoba_save', token, { [od]: 3 }, { oitn: 2 }, { [od.slice(0, 7)]: 'uwaga' }); // osoba zmienia
   loaded.avail.jan = { [day(8)]: 0 }; // Układacz zmienia kogoś innego i zapisuje stary stan Ani
   loaded.limits.ania = { '*': 4 };
+  loaded.availAdm.ania = { [od]: 0 }; // … i koryguje Anię — korekta jest osobno, więc zostaje
   await db.query('select public.save_state($1, $2)', [ADMIN, loaded]);
   let s = await state();
   assert.deepEqual(s.avail.ania, { [day(-3)]: 0, [od]: 3 });
@@ -138,6 +144,8 @@ test('save_state Układacza nie nadpisuje zmian osoby zrobionych po wczytaniu', 
   assert.deepEqual(s.uwagi.ania, { [od.slice(0, 7)]: 'uwaga' });
   assert.deepEqual(s.avail.jan, { [day(8)]: 0 });
   assert.deepEqual(s.limits.ania, { '*': 4 });
+  assert.deepEqual(s.availAdm.ania, { [od]: 0 });
+  assert.deepEqual((await call('osoba_load', token)).avail, { [day(-3)]: 0, [od]: 3 }, 'osoba widzi swój wpis, nie korektę');
   // po odświeżeniu Układacz ma aktualny stamp — wtedy jego zmiana wygrywa
   const fresh = (await call('load_state', ADMIN)).data;
   fresh.avail.ania = {};

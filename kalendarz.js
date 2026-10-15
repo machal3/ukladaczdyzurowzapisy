@@ -1,4 +1,4 @@
-// Czyste funkcje (bez DOM i sieci). dateKey/daysInMonth/weekday/LEVELS skopiowane z scheduler.js Układacza —
+// Czyste funkcje (bez DOM i sieci). dateKey/daysInMonth/weekday/LEVELS/BAD/badOf skopiowane z scheduler.js Układacza —
 // muszą zostać zgodne, bo klucze dni i poziomy trafiają wprost do jego stanu (state.avail).
 const pad = (n) => String(n).padStart(2, '0');
 export const dateKey = (y, m, d) => d >= 1 && d <= 28 && m >= 0 && m <= 11 ? `${y}-${pad(m + 1)}-${pad(d)}`
@@ -8,6 +8,10 @@ export const weekday = (y, m, d) => (new Date(y, m, d).getDay() + 6) % 7; // 0 =
 export const LEVELS = ['Nie mogę', 'W ostateczności', 'Mogę', 'Chcę', 'Muszę'];
 export const DEFAULT_LEVEL = 2; // brak wpisu = „Mogę”
 export const availOf = (avail, key) => avail[key] ?? DEFAULT_LEVEL;
+// Gównianość dnia jak w Układaczu (BAD/badOf z scheduler.js): bad = ręczne oceny z osoba_load, reszta wg dnia tygodnia
+export const BAD = ['Zwykły', 'Słaby', 'Gówniany', 'Tragiczny'];
+const BAD_DEFAULT = [0, 0, 0, 0, 2, 1, 1]; // indeks = dzień tygodnia, 0 = pon
+export const badOf = (bad, y, m, d) => bad[dateKey(y, m, d)] ?? BAD_DEFAULT[weekday(y, m, d)];
 
 // Poziom dnia; „Mogę” nie jest zapisywane (jak w Układaczu). Zwraca nowy obiekt.
 export function setLevel(avail, key, lvl) {

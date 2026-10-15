@@ -21,13 +21,14 @@ async function setup(t, { token = null, prosby = true } = {}) {
   const od = key(now.getFullYear(), now.getMonth() + (now.getDate() <= 20 ? 1 : 2), 1); // jak zapisy_od w bazie
   const cur = (d) => key(now.getFullYear(), now.getMonth(), d);
   db.grafik = { [cur(3)]: { s1: 'Anna Kowalska', s2: 'Jan Nowak' }, [cur(4)]: { s1: 'Jan Nowak' } };
+  db.bad = { [cur(3)]: 3 };
   w.fetch = async (url, init) => {
     const fn = url.split('/').pop(), body = JSON.parse(init.body);
     db.calls.push({ fn, body });
     const ok = (data) => ({ ok: true, json: async () => data });
     if (fn === 'osoba_login') return ok(body.p === '404373' ? { token: 'a'.repeat(64), name: 'Anna Kowalska' } : { error: 'Zły PIN' });
     if (body.t !== 'a'.repeat(64)) return ok({ error: 'Sesja wygasła' });
-    if (fn === 'osoba_load') return ok({ name: 'Anna Kowalska', shifts: [{ id: 's1', name: 'OITN', days: [0, 1, 2, 3, 4, 5, 6] }, { id: 's2', name: 'PN1', days: [0, 1, 2, 3, 4, 5, 6] }], avail: db.avail, wants: db.wants, uwagi: db.uwagi, od, prosby, grafik: db.grafik });
+    if (fn === 'osoba_load') return ok({ name: 'Anna Kowalska', shifts: [{ id: 's1', name: 'OITN', days: [0, 1, 2, 3, 4, 5, 6] }, { id: 's2', name: 'PN1', days: [0, 1, 2, 3, 4, 5, 6] }], avail: db.avail, wants: db.wants, uwagi: db.uwagi, od, prosby, grafik: db.grafik, bad: db.bad });
     if (fn === 'osoba_save') { db.avail = body.a; db.wants = body.w; db.uwagi = body.c; return ok({}); }
     if (fn === 'osoba_logout') { db.loggedOut = true; return ok({}); }
     throw new Error(`Nieoczekiwane RPC ${fn}`);
@@ -113,6 +114,13 @@ test('grafik: wszystkie dyżury, moje podświetlone, „Tylko moje”', async (t
   assert.match(mine[0].textContent, /OITN.*Anna Kowalska/);
   assert.match(s.$('#grafik').textContent, /Jan Nowak/);
   assert.equal(s.$('#grafik-list .count').textContent, '1');
+  // gównianość dni jak w Układaczu: ręczna ocena z bazy, reszta wg dnia tygodnia
+  const cells = [...s.w.document.querySelectorAll('#grafik .cell:not(.empty)')];
+  assert.ok(cells[2].classList.contains('burden-3'));
+  assert.match(cells[2].getAttribute('aria-label'), /Tragiczny/);
+  const now = new Date(), wd = (d) => (new Date(now.getFullYear(), now.getMonth(), d).getDay() + 6) % 7;
+  const fri = [...Array(28).keys()].map((i) => i + 1).find((d) => d !== 3 && wd(d) === 4);
+  assert.ok(cells[fri - 1].classList.contains('burden-2'), 'piątek domyślnie gówniany');
   s.$('#only-mine').click();
   assert.equal(s.$('#only-mine').getAttribute('aria-pressed'), 'true');
   assert.ok(s.$('#grafik').classList.contains('only-mine'));

@@ -3,7 +3,8 @@
 -- w wersji z save_state, które zachowuje zmiany osób (data.stamps, patrz README).
 --
 -- Zasada: przeglądarka osoby nigdy nie dostaje całego stanu. Funkcje poniżej wycinają z dyzury.data tylko
--- imię, nazwy miejsc, avail[pid] i wants[pid]. Limity, minima, warunki, inne osoby i grafik zostają w bazie.
+-- imię, nazwy miejsc, avail[pid] i wants[pid], a z gotowych miesięcy grafik (same imiona) i gównianość dni.
+-- Limity, minima, warunki, korekty administratora i dane innych osób zostają w bazie.
 
 create extension if not exists pgcrypto with schema extensions;
 
@@ -146,7 +147,14 @@ begin
     'uwagi', coalesce(d->'uwagi'->v_pid, '{}'),
     'od', public.zapisy_od(d),
     'prosby', public.zapisy_od(d) <= (date_trunc('month', (now() at time zone 'Europe/Warsaw')::date) + interval '1 month')::date,
-    'grafik', public.zapisy_grafik(d));
+    'grafik', public.zapisy_grafik(d),
+    -- gównianość dni 0–3 ustawiona ręcznie w Układaczu (data.bad), tylko dni miesięcy z grafikiem do podglądu;
+    -- domyślną (wg dnia tygodnia) liczy klient — badOf w kalendarz.js
+    'bad', (select coalesce(jsonb_object_agg(b.key, b.value), '{}')
+            from jsonb_each(case when jsonb_typeof(d->'bad') = 'object' then d->'bad' else '{}' end) b
+            where b.key ~ '^\d{4}-\d{2}-\d{2}$' and d->'gotowe'->left(b.key, 7) = 'true' and b.value::text in ('0', '1', '2', '3')
+              and b.key >= to_char(date_trunc('month', (now() at time zone 'Europe/Warsaw')::date) - interval '1 month', 'YYYY-MM-DD')
+              and b.key < to_char((now() at time zone 'Europe/Warsaw')::date + 366, 'YYYY-MM-DD')));
 end $fn$ language plpgsql stable security definer set search_path = '';
 
 -- Zapis całej dostępności i próśb osoby. Dni przed zapisy_od zostają takie, jak były (przysłane są pomijane).

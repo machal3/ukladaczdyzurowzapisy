@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dateKey, setLevel, nextLevel, monthSummary, wantRows, parseWant, LEVELS, deadline, monthKey, myShifts } from './kalendarz.js';
+import { dateKey, badOf, setLevel, nextLevel, monthSummary, wantRows, parseWant, LEVELS, deadline, monthKey, myShifts } from './kalendarz.js';
+
+test('gównianość jak w Układaczu: Pt gówniany, So/Nd słabe, ręczna ocena wygrywa', () => {
+  assert.deepEqual([2, 3, 4, 5, 6, 7, 8].map((d) => badOf({}, 2026, 10, d)), [0, 0, 0, 0, 2, 1, 1]); // 2.11.2026 = pon
+  assert.equal(badOf({ '2026-11-04': 3, '2026-11-06': 0 }, 2026, 10, 4), 3);
+  assert.equal(badOf({ '2026-11-06': 0 }, 2026, 10, 6), 0);
+});
 
 test('poziomy jak w Układaczu: „Mogę” nie jest zapisywane, klik idzie po kolei', () => {
   assert.deepEqual(LEVELS, ['Nie mogę', 'W ostateczności', 'Mogę', 'Chcę', 'Muszę']);

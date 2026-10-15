@@ -1,6 +1,6 @@
 // Zapisy na dyżury: osoba (6-cyfrowy PIN) ustawia własną dostępność, prośby i komentarze do miesięcy
 // oraz ogląda grafik (same imiona na miejscach). Limity, minima i dostępność innych zostają w bazie (supabase-zapisy.sql).
-import { dateKey, daysInMonth, weekday, LEVELS, availOf, setLevel, nextLevel, monthSummary, wantRows, parseWant, deadline, monthKey, myShifts } from './kalendarz.js';
+import { dateKey, daysInMonth, weekday, LEVELS, BAD, badOf, availOf, setLevel, nextLevel, monthSummary, wantRows, parseWant, deadline, monthKey, myShifts } from './kalendarz.js';
 import { hasSession, login, load, logout, save, SessionError } from './api.js';
 
 const $ = (s) => document.querySelector(s);
@@ -13,7 +13,7 @@ const COMMENT_MAX = 500;
 
 const me = await start();
 let avail = me.avail, wants = me.wants, uwagi = me.uwagi ?? {};
-const grafik = me.grafik ?? {};
+const grafik = me.grafik ?? {}, bad = me.bad ?? {};
 const now = new Date();
 const ym = (d) => ({ y: d.getFullYear(), m: d.getMonth() });
 const shift = ({ y, m }, n) => ym(new Date(y, m + n));
@@ -119,13 +119,13 @@ function renderGrafik() {
   let html = DAY_NAMES.map((d) => `<div class="dow">${d}</div>`).join('');
   html += '<div class="cell empty"></div>'.repeat(weekday(y, m, 1));
   for (let d = 1; d <= daysInMonth(y, m); d++) {
-    const key = dateKey(y, m, d), wd = weekday(y, m, d), day = grafik[key] ?? {};
+    const key = dateKey(y, m, d), wd = weekday(y, m, d), day = grafik[key] ?? {}, b = badOf(bad, y, m, d);
     const slots = me.shifts.filter((s) => s.days?.includes(wd) || day[s.id]).map((s) => {
       const who = day[s.id], my = who === me.name;
       return `<div class="slot ${who ? '' : 'unfilled'} ${my ? 'mine' : ''}"><span class="slot-label">${esc(s.name)}</span>` +
         `<span class="slot-name">${who ? esc(who) : '—'}${my ? '<span class="you">Ty</span>' : ''}</span></div>`;
     }).join('');
-    html += `<div class="cell ${key === todayKey ? 'today' : ''} ${slots.includes(' mine') ? 'has-mine' : ''}" aria-label="${DAY_NAMES[wd]}, ${d} ${monthName(v)}">
+    html += `<div class="cell burden-${b} ${key === todayKey ? 'today' : ''} ${slots.includes(' mine') ? 'has-mine' : ''}" aria-label="${DAY_NAMES[wd]}, ${d} ${monthName(v)} — ${BAD[b]}" title="${BAD[b]} dzień">
       <div class="day-heading"><div class="num" aria-hidden="true">${d}</div><span class="day-name">${DAY_NAMES[wd]}</span>${key === todayKey ? '<span class="today-label">Dzisiaj</span>' : ''}</div>
       <div class="day-slots">${slots}</div></div>`;
   }

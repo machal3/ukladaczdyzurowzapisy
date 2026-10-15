@@ -8,23 +8,24 @@ Każda osoba loguje się **własnym 6-cyfrowym PIN-em** i może:
 - zostawić **komentarz** do swoich dyżurów w danym miesiącu (do 500 znaków, w tym samym terminie co dostępność),
 - ustawić swoje **prośby** (ile dyżurów chce: łącznie, Pt/So/Nd, na miejscach, w dni weekendu) — obowiązują od
   najbliższego miesiąca, więc od 21. do końca miesiąca są zamknięte,
-- obejrzeć **grafik** miesięcy oznaczonych w Układaczu jako „Gotowe” (od poprzedniego miesiąca) — swoje dyżury podświetlone, filtr „Tylko moje”.
+- obejrzeć **grafik** miesięcy oznaczonych w Układaczu jako „Gotowe” (od poprzedniego miesiąca) — swoje dyżury podświetlone, filtr „Tylko moje”, dni w kolorach gównianości jak w Układaczu.
 
-Nie widzi swoich limitów ani minimów, dostępności i próśb innych, warunków ani gównianości dni — te dane w ogóle
-nie wychodzą z bazy. Z grafiku dostaje tylko imiona na miejscach. Wpisy trafiają wprost do stanu Układacza
+Nie widzi swoich limitów ani minimów, korekt administratora, dostępności i próśb innych ani warunków — te dane w ogóle
+nie wychodzą z bazy. Z grafiku dostaje tylko imiona na miejscach i gównianość dni. Wpisy trafiają wprost do stanu Układacza
 (`state.avail[pid]`, `state.wants[pid]`, `state.uwagi[pid]['YYYY-MM']`).
 
 ## Bezpieczeństwo
 
 | Co | Jak |
 |---|---|
-| Dostęp do danych | tylko funkcje `security definer` w Postgresie (`supabase-zapisy.sql`); tabele zamknięte (RLS bez polityk, `revoke all`). `osoba_load` zwraca imię, nazwy miejsc, `avail`, `wants` i `uwagi` tej osoby oraz grafik jako { dzień: { miejsce: imię } }. |
+| Dostęp do danych | tylko funkcje `security definer` w Postgresie (`supabase-zapisy.sql`); tabele zamknięte (RLS bez polityk, `revoke all`). `osoba_load` zwraca imię, nazwy miejsc, `avail`, `wants` i `uwagi` tej osoby oraz grafik jako { dzień: { miejsce: imię } } i ręczne oceny gównianości dni z tych samych miesięcy (`bad`). |
 | Uprawnienia | Supabase domyślnie daje rolom `anon`/`authenticated` `execute` na nowe funkcje — SQL odbiera je wprost (nie tylko `public`); `sql.test.js` odtwarza te domyślne uprawnienia. Klucz w `config.js` to klucz publishable (publiczny z założenia); klucza `secret`/`service_role` nie ma w repo. |
 | PIN | w bazie tylko HMAC-SHA256 z losowym pepperem (`zapisy_sekret`); unikalny. Do przeglądarki nie wraca i nie jest w niej zapisywany. |
 | Sesja | po zalogowaniu losowy token (32 bajty) w `localStorage`, w bazie jego sha256; ważny 90 dni. Wyloguj / nowy PIN / usunięcie konta lub osoby = koniec sesji. |
 | Zgadywanie PIN-u | 5 złych prób / 15 min z jednego adresu, 100 złych prób / 24 h łącznie → logowanie wstrzymane (zalogowani pracują dalej), 1 s przerwy po złej próbie, próby po kolei. Szansa trafienia czyjegoś PIN-u przy ciągłym ataku ≈ 0,3% na dobę. |
 | Zapis | serwer sprawdza każdą datę (format, miesiąc otwarty — termin 20. dnia poprzedniego miesiąca, opcjonalnie `zapisyOd` — ≤ 400 dni naprzód), komentarze (miesiąc otwarty, ≤ 500 znaków), prośby (zamknięte od 21. do końca miesiąca), poziom 0–4, klucze próśb (tylko id miejsc i `* we d56 d4 d5 d6`), wartości 0–31. Przeszłe dni zostają takie, jakie były. |
 | Przeglądarka | CSP w `vercel.json` (skrypty tylko własne, połączenia tylko do Supabase), `no-referrer`, `nosniff`; tekst z bazy zawsze przez `esc()`/`textContent`. |
+| Korekty administratora | Układacz nie zmienia wpisów osoby: swoje zmiany dostępności i próśb trzyma obok, w `data.availAdm`/`data.wantsAdm`. Mają pierwszeństwo przy układaniu, ale `osoba_load` ich nie wysyła — osoba widzi tylko to, co sama wpisała (`sql.test.js`). |
 | Konflikty z Układaczem | Zapisy ustawiają `data.stamps[pid]`; zmieniony `save_state` Układacza nie nadpisuje zmian osoby, których jeszcze nie wczytał (`ukladacz/supabase.sql`). |
 
 ## Wdrożenie
