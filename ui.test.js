@@ -16,16 +16,19 @@ async function setup(t, { token = null } = {}) {
   w.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   w.HTMLFormElement.prototype.reportValidity = () => false;
   if (token) w.localStorage.setItem('zapisy-token', token);
-  const db = { avail: { '2020-01-01': 0 }, wants: { '*': 4 }, calls: [], loggedOut: false };
-  const od = new Date().toISOString().slice(0, 10);
+  const db = { avail: { '2020-01-01': 0 }, wants: { '*': 4 }, uwagi: {}, calls: [], loggedOut: false };
+  const now = new Date(), key = (y, m, d) => { const t = new Date(y, m, d); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
+  const od = key(now.getFullYear(), now.getMonth() + (now.getDate() <= 20 ? 1 : 2), 1); // jak zapisy_od w bazie
+  const cur = (d) => key(now.getFullYear(), now.getMonth(), d);
+  db.grafik = { [cur(3)]: { s1: 'Anna Kowalska', s2: 'Jan Nowak' }, [cur(4)]: { s1: 'Jan Nowak' } };
   w.fetch = async (url, init) => {
     const fn = url.split('/').pop(), body = JSON.parse(init.body);
     db.calls.push({ fn, body });
     const ok = (data) => ({ ok: true, json: async () => data });
     if (fn === 'osoba_login') return ok(body.p === '404373' ? { token: 'a'.repeat(64), name: 'Anna Kowalska' } : { error: 'Zły PIN' });
     if (body.t !== 'a'.repeat(64)) return ok({ error: 'Sesja wygasła' });
-    if (fn === 'osoba_load') return ok({ name: 'Anna Kowalska', shifts: [{ id: 's1', name: 'OITN', days: [0, 1, 2, 3, 4, 5, 6] }, { id: 's2', name: 'PN1', days: [0, 1, 2, 3, 4, 5, 6] }], avail: db.avail, wants: db.wants, od });
-    if (fn === 'osoba_save') { db.avail = body.a; db.wants = body.w; return ok({}); }
+    if (fn === 'osoba_load') return ok({ name: 'Anna Kowalska', shifts: [{ id: 's1', name: 'OITN', days: [0, 1, 2, 3, 4, 5, 6] }, { id: 's2', name: 'PN1', days: [0, 1, 2, 3, 4, 5, 6] }], avail: db.avail, wants: db.wants, uwagi: db.uwagi, od, grafik: db.grafik });
+    if (fn === 'osoba_save') { db.avail = body.a; db.wants = body.w; db.uwagi = body.c; return ok({}); }
     if (fn === 'osoba_logout') { db.loggedOut = true; return ok({}); }
     throw new Error(`Nieoczekiwane RPC ${fn}`);
   };
@@ -42,7 +45,7 @@ async function setup(t, { token = null } = {}) {
   const $ = (s) => w.document.querySelector(s);
   const tick = () => new Promise((r) => setTimeout(r, 0));
   const done = app.evaluate();
-  return { w, $, tick, db, done, wait: (ms) => new Promise((r) => setTimeout(r, ms)) };
+  return { w, $, tick, db, done, od, cur, wait: (ms) => new Promise((r) => setTimeout(r, ms)) };
 }
 
 const typePin = async ({ w, $, tick }, pin) => {
@@ -69,7 +72,7 @@ test('kalendarz: klik zmienia poziom i zapisuje; brak limitów i innych osób w 
   const s = await setup(t, { token: 'a'.repeat(64) });
   await s.done;
   const html = s.w.document.body.innerHTML;
-  for (const word of ['Limit', 'Min.', 'najmniej', 'najwyżej', 'Jan ', 'Rezydent']) assert.ok(!html.includes(word), word);
+  for (const word of ['Limit', 'Min.', 'najmniej', 'najwyżej', 'Rezydent']) assert.ok(!html.includes(word), word);
   const btn = s.$('#calendar [data-avail]:enabled');
   const key = btn.dataset.avail;
   btn.click(); // Mogę → Chcę
@@ -86,13 +89,50 @@ test('kalendarz: klik zmienia poziom i zapisuje; brak limitów i innych osób w 
   assert.equal(s.$('#save-state').textContent, 'Zapisano');
 });
 
-test('przeszłe dni są tylko do podglądu, poprzedni miesiąc przed bieżącym zablokowany', async (t) => {
+test('termin 20.: start na pierwszym otwartym miesiącu, wcześniejsze tylko do podglądu', async (t) => {
   const s = await setup(t, { token: 'a'.repeat(64) });
   await s.done;
-  s.$('#prev').click();
+  assert.equal(s.$('#calendar [data-avail]').dataset.avail.slice(0, 7), s.od.slice(0, 7));
+  assert.match(s.$('#status').textContent, /zapisy do 20 /);
+  for (let i = 0; i < 3 && !s.$('#prev').disabled; i++) s.$('#prev').click();
   assert.equal(s.$('#prev').disabled, true);
-  const today = new Date().toISOString().slice(0, 10);
-  for (const b of s.w.document.querySelectorAll('#calendar [data-avail]')) assert.equal(b.disabled, b.dataset.avail < today, b.dataset.avail);
+  assert.match(s.$('#status').textContent, /Zapisy zamknięte/);
+  assert.ok(!s.$('#status [data-lvl]'), 'bez pędzla w zamkniętym miesiącu');
+  for (const b of s.w.document.querySelectorAll('#calendar [data-avail]')) assert.equal(b.disabled, true, b.dataset.avail);
+  s.$('#status [data-go]').click();
+  assert.equal(s.w.document.body.dataset.tab, 'grafik');
+});
+
+test('grafik: wszystkie dyżury, moje podświetlone, „Tylko moje”', async (t) => {
+  const s = await setup(t, { token: 'a'.repeat(64) });
+  await s.done;
+  s.$('button[data-tab="grafik"]').click();
+  assert.equal(s.$('#grafik-empty').hidden, true);
+  const mine = [...s.w.document.querySelectorAll('#grafik .slot.mine')];
+  assert.equal(mine.length, 1);
+  assert.match(mine[0].textContent, /OITN.*Anna Kowalska/);
+  assert.match(s.$('#grafik').textContent, /Jan Nowak/);
+  assert.equal(s.$('#grafik-list .count').textContent, '1');
+  s.$('#only-mine').click();
+  assert.equal(s.$('#only-mine').getAttribute('aria-pressed'), 'true');
+  assert.ok(s.$('#grafik').classList.contains('only-mine'));
+  s.$('#next').click(); s.$('#next').click();
+  assert.equal(s.$('#grafik-empty').hidden, false);
+});
+
+test('komentarz do miesiąca zapisuje się razem z resztą', async (t) => {
+  const s = await setup(t, { token: 'a'.repeat(64) });
+  await s.done;
+  const f = s.$('#comment-text');
+  f.value = 'Wolę OITN, 12. mogę się zamienić';
+  f.dispatchEvent(new s.w.Event('input', { bubbles: true }));
+  assert.equal(s.$('#comment-count').textContent, '32/500');
+  await s.wait(450); await s.tick();
+  assert.deepEqual(s.db.uwagi, { [s.od.slice(0, 7)]: 'Wolę OITN, 12. mogę się zamienić' });
+  f.value = '  ';
+  f.dispatchEvent(new s.w.Event('input', { bubbles: true }));
+  await s.wait(450); await s.tick();
+  assert.deepEqual(s.db.uwagi, {});
 });
 
 test('prośby: wpis, czyszczenie i odrzucenie złej wartości', async (t) => {

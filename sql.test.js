@@ -9,6 +9,8 @@ import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
 const sql = (name) => readFile(new URL(name, import.meta.url), 'utf8');
 const ADMIN = '4821';
 const day = (n) => { const d = new Date(Date.now() + n * 864e5); return d.toISOString().slice(0, 10); };
+const plus = (key, n) => { const d = new Date(`${key}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const month = (n) => { const d = new Date(); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString().slice(0, 7); };
 
 async function setup() {
   const db = new PGlite({ extensions: { pgcrypto } });
@@ -22,13 +24,15 @@ async function setup() {
     shifts: [{ id: 'oitn', name: 'OITN', days: [0, 1, 2, 3, 4, 5, 6] }],
     avail: { ania: { [day(-3)]: 0 }, jan: { [day(5)]: 3 } },
     limits: { ania: { '*': 6 } }, mins: { ania: { '*': 2 } }, wants: {}, rules: [{ id: 'r', who: 'ania', with: 'jan', places: ['oitn'] }],
-    schedule: { [day(-3)]: { oitn: 'jan' } },
+    schedule: { [day(-3)]: { oitn: 'jan' }, [`${month(0)}-15`]: { oitn: 'ania' }, [`${month(0)}-16`]: { oitn: 'jan', zniknięte: 'ania' },
+      [`${month(-3)}-10`]: { oitn: 'jan' }, [`${month(1)}-02`]: { oitn: 'nikt' } },
   };
   await db.query('select public.save_state($1, $2)', [ADMIN, data]);
   const call = async (fn, ...args) => (await db.query(`select public.${fn}(${args.map((_, i) => `$${i + 1}`).join(', ')}) as r`, args)).rows[0].r;
   const ip = (addr) => db.query(`select set_config('request.headers', $1, false)`, [JSON.stringify({ 'x-forwarded-for': `${addr}, 10.0.0.1` })]);
   const state = async () => (await db.query('select data from public.dyzury where id = 1')).rows[0].data;
-  return { db, call, ip, state };
+  const od = (await db.query(`select to_char(public.zapisy_od('{}'), 'YYYY-MM-DD') as od`)).rows[0].od; // pierwszy otwarty dzień
+  return { db, call, ip, state, od };
 }
 
 test('logowanie PIN-em, sesja i dane tylko tej osoby', async () => {
@@ -42,10 +46,15 @@ test('logowanie PIN-em, sesja i dane tylko tej osoby', async () => {
   assert.equal(name, 'Anna Kowalska');
   assert.match(token, /^[0-9a-f]{64}$/);
   const me = await call('osoba_load', token);
-  assert.deepEqual(Object.keys(me).sort(), ['avail', 'name', 'od', 'shifts', 'wants']);
+  assert.deepEqual(Object.keys(me).sort(), ['avail', 'grafik', 'name', 'od', 'shifts', 'uwagi', 'wants']);
   assert.deepEqual(me.shifts, [{ id: 'oitn', name: 'OITN', days: [0, 1, 2, 3, 4, 5, 6] }]);
   assert.deepEqual(me.avail, { [day(-3)]: 0 });
-  const text = JSON.stringify(me);
+  // grafik: tylko imiona na istniejących miejscach, od poprzedniego miesiąca; nieznane miejsca/osoby pominięte
+  assert.deepEqual(me.grafik[`${month(0)}-15`], { oitn: 'Anna Kowalska' });
+  assert.deepEqual(me.grafik[`${month(0)}-16`], { oitn: 'Jan Nowak' });
+  assert.equal(me.grafik[`${month(-3)}-10`], undefined);
+  assert.equal(me.grafik[`${month(1)}-02`], undefined);
+  const text = JSON.stringify({ ...me, grafik: null });
   for (const secret of ['Jan', 'jan', 'limits', 'mins', 'rules', 'schedule', '"6"', 'Ex Osoba']) assert.ok(!text.includes(secret), secret);
   assert.match((await call('osoba_load', 'f'.repeat(64))).error, /Sesja/);
   assert.match((await call('osoba_load', "' or 1=1 --")).error, /Sesja/);
@@ -53,16 +62,30 @@ test('logowanie PIN-em, sesja i dane tylko tej osoby', async () => {
   assert.match((await call('osoba_load', token)).error, /Sesja/);
 });
 
-test('zapis: walidacja, przeszłość nietykalna, inne pola stanu bez zmian', async () => {
-  const { call, ip, state } = await setup();
+test('termin: miesiąc otwarty do 20. dnia poprzedniego miesiąca', async () => {
+  const { db } = await setup();
+  const od = async (dzis, d = {}) => (await db.query(`select to_char(public.zapisy_od($1, $2::date), 'YYYY-MM-DD') as r`, [d, dzis])).rows[0].r;
+  assert.equal(await od('2026-10-01'), '2026-11-01');
+  assert.equal(await od('2026-10-20'), '2026-11-01');
+  assert.equal(await od('2026-10-21'), '2026-12-01');
+  assert.equal(await od('2026-12-25'), '2027-02-01');
+  assert.equal(await od('2026-10-05', { zapisyOd: '2027-01' }), '2027-01-01');
+  assert.equal(await od('2026-10-05', { zapisyOd: '2026-01' }), '2026-11-01');
+});
+
+test('zapis: walidacja, zamknięte miesiące nietykalne, inne pola stanu bez zmian', async () => {
+  const { call, ip, state, od } = await setup();
   await ip('1.1.1.2');
   await call('admin_set_pin', ADMIN, 'ania', '404373');
   const { token } = await call('osoba_login', '404373');
   const before = await state();
-  assert.deepEqual(await call('osoba_save', token, { [day(-3)]: 3, [day(-1)]: 4, [day(2)]: 0, [day(3)]: 2, [day(4)]: 4 }, { oitn: 3, '*': 5, we: null }), {});
+  const closed = plus(od, -1);
+  assert.deepEqual(await call('osoba_save', token, { [day(-3)]: 3, [closed]: 4, [od]: 0, [plus(od, 1)]: 2, [plus(od, 2)]: 4 }, { oitn: 3, '*': 5, we: null },
+    { [month(-1)]: 'stary', [month(0)]: 'w tym miesiącu wolę OITN', [month(2)]: '   ' }), {});
   const after = await state();
-  assert.deepEqual(after.avail.ania, { [day(-3)]: 0, [day(2)]: 0, [day(4)]: 4 }); // przeszłość z bazy, „Mogę” bez wpisu
+  assert.deepEqual(after.avail.ania, { [day(-3)]: 0, [od]: 0, [plus(od, 2)]: 4 }); // zamknięte z bazy, „Mogę” bez wpisu
   assert.deepEqual(after.wants.ania, { oitn: 3, '*': 5 });
+  assert.deepEqual(after.uwagi.ania, { [month(0)]: 'w tym miesiącu wolę OITN' }); // przeszły miesiąc i puste pominięte
   assert.ok(after.stamps.ania);
   for (const k of ['people', 'shifts', 'limits', 'mins', 'rules', 'schedule']) assert.deepEqual(after[k], before[k], k);
   assert.deepEqual(after.avail.jan, before.avail.jan);
@@ -70,23 +93,26 @@ test('zapis: walidacja, przeszłość nietykalna, inne pola stanu bez zmian', as
     [{ [day(1)]: 5 }, {}, /poziom/], [{ [day(1)]: '3' }, {}, /poziom/], [{ '2026-02-30': 1 }, {}, /data/], [{ [day(500)]: 1 }, {}, /data/],
     [{ 'x': 1 }, {}, /data/], [{}, { limits: 1 }, /Nieznana/], [{}, { oitn: 40 }, /0–31/], [{}, { oitn: -1 }, /0–31/], [{}, { oitn: 1.5 }, /0–31/],
     [[], {}, /Nieprawidłowe/],
-  ]) assert.match((await call('osoba_save', token, a, w)).error, why, JSON.stringify([a, w]));
+  ]) assert.match((await call('osoba_save', token, a, w, {})).error, why, JSON.stringify([a, w]));
+  for (const [c, why] of [[{ [month(0)]: 'x'.repeat(501) }, /500/], [{ [month(0)]: 5 }, /500/], [{ '2026-13': 'a' }, /miesiąc/], [{ [month(14)]: 'a' }, /miesiąc/], [[], /Nieprawidłowe/]])
+    assert.match((await call('osoba_save', token, {}, {}, c)).error, why, JSON.stringify(c));
   assert.deepEqual((await state()).avail.ania, after.avail.ania);
 });
 
 test('save_state Układacza nie nadpisuje zmian osoby zrobionych po wczytaniu', async () => {
-  const { call, ip, state, db } = await setup();
+  const { call, ip, state, db, od } = await setup();
   await ip('1.1.1.3');
   await call('admin_set_pin', ADMIN, 'ania', '404373');
   const loaded = (await call('load_state', ADMIN)).data; // Układacz wczytał dane
   const { token } = await call('osoba_login', '404373');
-  await call('osoba_save', token, { [day(7)]: 3 }, { oitn: 2 }); // osoba zmienia
+  await call('osoba_save', token, { [od]: 3 }, { oitn: 2 }, { [month(1)]: 'uwaga' }); // osoba zmienia
   loaded.avail.jan = { [day(8)]: 0 }; // Układacz zmienia kogoś innego i zapisuje stary stan Ani
   loaded.limits.ania = { '*': 4 };
   await db.query('select public.save_state($1, $2)', [ADMIN, loaded]);
   let s = await state();
-  assert.deepEqual(s.avail.ania, { [day(-3)]: 0, [day(7)]: 3 });
+  assert.deepEqual(s.avail.ania, { [day(-3)]: 0, [od]: 3 });
   assert.deepEqual(s.wants.ania, { oitn: 2 });
+  assert.deepEqual(s.uwagi.ania, { [month(1)]: 'uwaga' });
   assert.deepEqual(s.avail.jan, { [day(8)]: 0 });
   assert.deepEqual(s.limits.ania, { '*': 4 });
   // po odświeżeniu Układacz ma aktualny stamp — wtedy jego zmiana wygrywa

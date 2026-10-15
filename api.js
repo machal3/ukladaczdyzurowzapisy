@@ -23,7 +23,8 @@ export async function login(pin) {
   const { token: t } = await rpc('osoba_login', { p: pin });
   try { localStorage.setItem(TOKEN, t); } catch {}
 }
-// { name, shifts: [{ id, name, days }], avail, wants, od: 'YYYY-MM-DD' — pierwszy dzień do zmiany }
+// { name, shifts: [{ id, name, days }], avail, wants, uwagi: { 'YYYY-MM': tekst },
+//   od: 'YYYY-MM-DD' — pierwszy dzień do zmiany, grafik: { dzień: { id miejsca: imię } } }
 export const load = () => rpc('osoba_load', { t: token() });
 export async function logout() {
   const t = token();
@@ -31,18 +32,18 @@ export async function logout() {
   if (t) await rpc('osoba_logout', { t }).catch(() => {});
 }
 
-// Zapis całości (avail + wants osoby) po 400 ms ciszy — malowanie dni przeciągnięciem idzie jednym zapisem.
+// Zapis całości (avail + wants + uwagi osoby) po 400 ms ciszy — malowanie dni przeciągnięciem idzie jednym zapisem.
 // onState('saving' | 'saved' | Error) — wskaźnik w nagłówku.
 let timer = null, latest = null, pending = 0, queue = Promise.resolve();
-export function save(avail, wants, onState) {
-  latest = { a: avail, w: wants };
+export function save(avail, wants, uwagi, onState) {
+  latest = { a: avail, w: wants, c: uwagi };
   if (!timer) pending++;
   clearTimeout(timer);
   onState('saving');
   timer = setTimeout(() => {
     timer = null;
-    const { a, w } = latest;
-    queue = queue.then(() => rpc('osoba_save', { t: token(), a, w }))
+    const { a, w, c } = latest;
+    queue = queue.then(() => rpc('osoba_save', { t: token(), a, w, c }))
       .then(() => { if (pending === 1) onState('saved'); }, onState).finally(() => pending--);
   }, 400);
 }

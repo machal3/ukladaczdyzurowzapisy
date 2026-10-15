@@ -1,23 +1,27 @@
 # Zapisy na dyżury
 
 Osobna aplikacja dla osób dyżurujących, do [Układacza dyżurów](https://github.com/machal3/ukladaczdyzurow).
-Każda osoba loguje się **własnym 6-cyfrowym PIN-em** i może tylko:
+Każda osoba loguje się **własnym 6-cyfrowym PIN-em** i może:
 
-- zaznaczyć w kalendarzu, kiedy może / chce / musi / nie może dyżurować (te same poziomy co w Układaczu),
-- ustawić swoje **prośby** (ile dyżurów chce: łącznie, Pt/So/Nd, na miejscach, w dni weekendu).
+- zaznaczyć w kalendarzu, kiedy może / chce / musi / nie może dyżurować (te same poziomy co w Układaczu) —
+  **na dany miesiąc do 20. dnia poprzedniego miesiąca**, później miesiąc jest tylko do podglądu,
+- zostawić **komentarz** do swoich dyżurów w danym miesiącu (do 500 znaków, także po terminie),
+- ustawić swoje **prośby** (ile dyżurów chce: łącznie, Pt/So/Nd, na miejscach, w dni weekendu),
+- obejrzeć **aktualny grafik** (od poprzedniego miesiąca) — swoje dyżury podświetlone, filtr „Tylko moje”.
 
-Nie widzi swoich limitów ani minimów, innych osób, warunków, gównianości dni ani grafiku — te dane w ogóle nie
-wychodzą z bazy. Wpisy trafiają wprost do stanu Układacza (`state.avail[pid]`, `state.wants[pid]`).
+Nie widzi swoich limitów ani minimów, dostępności i próśb innych, warunków ani gównianości dni — te dane w ogóle
+nie wychodzą z bazy. Z grafiku dostaje tylko imiona na miejscach. Wpisy trafiają wprost do stanu Układacza
+(`state.avail[pid]`, `state.wants[pid]`, `state.uwagi[pid]['YYYY-MM']`).
 
 ## Bezpieczeństwo
 
 | Co | Jak |
 |---|---|
-| Dostęp do danych | tylko funkcje `security definer` w Postgresie (`supabase-zapisy.sql`); tabele zamknięte (RLS bez polityk, `revoke all`). `osoba_load` zwraca wyłącznie imię, nazwy miejsc, `avail` i `wants` tej osoby. |
+| Dostęp do danych | tylko funkcje `security definer` w Postgresie (`supabase-zapisy.sql`); tabele zamknięte (RLS bez polityk, `revoke all`). `osoba_load` zwraca imię, nazwy miejsc, `avail`, `wants` i `uwagi` tej osoby oraz grafik jako { dzień: { miejsce: imię } }. |
 | PIN | w bazie tylko HMAC-SHA256 z losowym pepperem (`zapisy_sekret`); unikalny. Do przeglądarki nie wraca i nie jest w niej zapisywany. |
 | Sesja | po zalogowaniu losowy token (32 bajty) w `localStorage`, w bazie jego sha256; ważny 90 dni. Wyloguj / nowy PIN / usunięcie konta lub osoby = koniec sesji. |
 | Zgadywanie PIN-u | 5 złych prób / 15 min z jednego adresu, 100 złych prób / 24 h łącznie → logowanie wstrzymane (zalogowani pracują dalej), 1 s przerwy po złej próbie, próby po kolei. Szansa trafienia czyjegoś PIN-u przy ciągłym ataku ≈ 0,3% na dobę. |
-| Zapis | serwer sprawdza każdą datę (format, nie w przeszłości ani przed `zapisyOd`, ≤ 400 dni naprzód), poziom 0–4, klucze próśb (tylko id miejsc i `* we d56 d4 d5 d6`), wartości 0–31. Przeszłe dni zostają takie, jakie były. |
+| Zapis | serwer sprawdza każdą datę (format, miesiąc otwarty — termin 20. dnia poprzedniego miesiąca, opcjonalnie `zapisyOd` — ≤ 400 dni naprzód), komentarze (miesiąc od bieżącego, ≤ 500 znaków), poziom 0–4, klucze próśb (tylko id miejsc i `* we d56 d4 d5 d6`), wartości 0–31. Przeszłe dni zostają takie, jakie były. |
 | Przeglądarka | CSP w `vercel.json` (skrypty tylko własne, połączenia tylko do Supabase), `no-referrer`, `nosniff`; tekst z bazy zawsze przez `esc()`/`textContent`. |
 | Konflikty z Układaczem | Zapisy ustawiają `data.stamps[pid]`; zmieniony `save_state` Układacza nie nadpisuje zmian osoby, których jeszcze nie wczytał (`ukladacz/supabase.sql`). |
 

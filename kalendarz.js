@@ -45,3 +45,17 @@ export function parseWant(text) {
   if (t === '') return undefined;
   return /^\d{1,2}$/.test(t) && +t <= 31 ? +t : null;
 }
+
+// Termin zapisów na miesiąc m: 20. dzień poprzedniego miesiąca (włącznie). Pilnuje go baza (zapisy_od), tu tylko do opisu.
+export const deadline = (y, m) => new Date(y, m - 1, 20);
+export const monthKey = (y, m) => dateKey(y, m, 1).slice(0, 7);
+
+// Moje dyżury w miesiącu z grafiku { dzień: { id miejsca: imię } }: [{ d, wd, shift }]
+export function myShifts(grafik, shifts, name, y, m) {
+  const names = Object.fromEntries(shifts.map((s) => [s.id, s.name]));
+  const out = [];
+  for (let d = 1; d <= daysInMonth(y, m); d++)
+    for (const [sid, who] of Object.entries(grafik[dateKey(y, m, d)] ?? {}))
+      if (who === name && names[sid]) out.push({ d, wd: weekday(y, m, d), shift: names[sid] });
+  return out;
+}

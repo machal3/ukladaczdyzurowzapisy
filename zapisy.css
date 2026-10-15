@@ -17,5 +17,54 @@
   .app-header h1 small { font-size: 14px; line-height: 20px; }
   #save-state.error { max-width: 14ch; }
 }
-body:not([data-tab=calendar]) .month { display: none; } /* miesiąc dotyczy tylko kalendarza; prośby obowiązują co miesiąc */
 .login::before { content: none; } /* bez hasła z Układacza nad logowaniem */
+
+/* Zakładki: miesiąc tylko przy dostępności i grafiku (prośby obowiązują co miesiąc) */
+body:not([data-tab=calendar], [data-tab=grafik]) .month { display: none; }
+body:not([data-tab=grafik]) #grafik-tab { display: none; }
+#grafik-tab { display: grid; gap: 20px; animation: appear 350ms var(--motion); }
+
+/* Pasek dostępności: termin zapisów, stan „zamknięte” */
+#status .deadline { display: inline-block; margin-left: 10px; padding: 3px 10px; border-radius: var(--shape-full); background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); font: var(--type-label); vertical-align: middle; }
+#status.closed { background: var(--md-sys-color-surface-container-high); }
+#status.closed .who b { color: var(--text); }
+#status.closed [data-go] { margin-left: auto; min-height: 40px; padding: 8px 18px; }
+#status .closed-msg { display: block; margin-top: 2px; color: var(--muted); }
+#status .who { min-width: 0; }
+
+/* Komentarz do miesiąca */
+.comment { padding: 20px 24px; }
+.comment h3 { margin-bottom: 4px; }
+.comment h3 label { cursor: text; }
+.comment .lead { margin-bottom: 12px; }
+.comment textarea { display: block; width: 100%; min-height: 72px; resize: vertical; line-height: 1.5; }
+.comment .hint { margin-top: 6px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Grafik (tylko do podglądu): moje dyżury podświetlone */
+.grafik-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 24px; }
+.grafik-mine { flex: 1 1 320px; min-width: 0; }
+.grafik-mine h3 { margin-bottom: 10px; }
+.mine-list { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.mine-list .count { display: grid; place-items: center; min-width: 28px; height: 28px; padding: 0 8px; border-radius: var(--shape-full); background: var(--strong); color: var(--on-strong); font: var(--type-label); }
+.mine-pill { background: var(--accent-soft); color: var(--md-sys-color-on-primary-container); }
+.empty-state { color: var(--muted); text-align: center; }
+#grafik .slot { cursor: default; }
+#grafik .slot.unfilled .slot-name::before { content: none; }
+#grafik .slot.mine { background: var(--strong); box-shadow: 0 0 0 2px var(--strong); }
+#grafik .slot.mine :is(.slot-label, .slot-name) { color: var(--on-strong); }
+#grafik .slot.mine .slot-name { font-weight: 700; }
+#grafik .cell.has-mine { box-shadow: inset 0 0 0 2px var(--strong); }
+.you { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: var(--shape-full); background: var(--on-strong); color: var(--strong); font: var(--type-label); font-size: 10px; line-height: 16px; vertical-align: 1px; }
+#grafik.only-mine .slot:not(.mine) { visibility: hidden; }
+@media (hover: hover) { #grafik .slot:hover { background: var(--md-sys-color-surface-container-low); } #grafik .slot.mine:hover { background: var(--strong); } }
+@media (max-width: 1099px) {
+  #grafik.only-mine .day-slots { grid-template-columns: 1fr; }
+  #grafik.only-mine .slot:not(.mine), #grafik.only-mine .cell:not(.has-mine) { display: none; } /* lista dni: tylko dni z moimi dyżurami */
+}
+@media (max-width: 760px) {
+  .comment, .grafik-head { padding: 16px; }
+  #status .deadline { margin-left: 8px; }
+  #status.pinned .who { flex: 1 1 100%; white-space: normal; overflow: visible; }
+  .comment .lead { display: none; } /* na telefonie ta sama informacja jest w podpowiedzi pola */
+  #status.closed [data-go] { margin-left: 0; }
+}

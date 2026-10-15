@@ -23,6 +23,7 @@
     <nav class="tabs" aria-label="Widok">
       <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h6v8H3V5a2 2 0 0 1 2-2Zm8 0h6a2 2 0 0 1 2 2v6h-8ZM3 13h8v8H5a2 2 0 0 1-2-2Zm10 0h8v6a2 2 0 0 1-2 2h-6Z"/></svg></div>
       <button class="ghost" data-tab="calendar" aria-pressed="true"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M8 13h.01"/><path d="M12 13h.01"/><path d="M16 13h.01"/><path d="M8 17h.01"/><path d="M12 17h.01"/><path d="M16 17h.01"/></svg></span><span>Dostępność</span></button>
+      <button class="ghost" data-tab="grafik" aria-pressed="false"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/></svg></span><span>Grafik</span></button>
       <button class="ghost" data-tab="settings" aria-pressed="false"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg></span><span>Prośby</span></button>
       <button class="ghost" data-tab="help" aria-pressed="false"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span><span>Instrukcja</span></button>
     </nav>
@@ -37,8 +38,23 @@
 
   <main id="main" tabindex="-1">
     <div class="board">
+      <section id="comment" class="panel comment" aria-labelledby="comment-title">
+        <h3><label for="comment-text" id="comment-title"></label></h3>
+        <p class="lead">Np. zamiany, preferowane miejsca, urlop w części dnia. Widzi go tylko osoba układająca grafik.</p>
+        <textarea id="comment-text" rows="2" maxlength="500" placeholder="Brak komentarza — widzi go tylko osoba układająca grafik" aria-describedby="comment-count"></textarea>
+        <p id="comment-count" class="hint" aria-live="polite"></p>
+      </section>
       <section id="calendar" class="calendar painting" aria-label="Moja dostępność w miesiącu"></section>
     </div>
+
+    <section id="grafik-tab" aria-label="Grafik dyżurów">
+      <div class="panel grafik-head">
+        <div class="grafik-mine"><h3 id="grafik-title">Moje dyżury</h3><p id="grafik-list" class="mine-list"></p></div>
+        <button type="button" class="chip" id="only-mine" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>Tylko moje</span></button>
+      </div>
+      <p id="grafik-empty" class="panel empty-state" hidden>Grafik na ten miesiąc nie jest jeszcze ułożony.</p>
+      <section id="grafik" class="calendar" aria-label="Grafik dyżurów w miesiącu"></section>
+    </section>
 
     <section id="settings" class="settings" aria-label="Prośby">
       <div class="panel" id="panel-wants">
@@ -67,14 +83,19 @@
           <tr><td><span class="avail lvl-1">W ostateczności</span></td><td>tylko gdy nikt inny nie może</td></tr>
           <tr><td><span class="avail lvl-0">Nie mogę</span></td><td>na pewno nie dostaniesz tego dnia dyżuru</td></tr>
         </table>
-        <p>Dni, które już minęły (albo miesiące już zamknięte przez układającego), są tylko do podglądu.</p>
+        <p><b>Termin:</b> na dany miesiąc zapisujesz się do <b>20. dnia poprzedniego miesiąca</b> (np. na grudzień do 20 listopada). Po terminie miesiąc jest tylko do podglądu — grafik jest wtedy układany.</p>
+        <p><b>Komentarz:</b> nad kalendarzem możesz zostawić komentarz do swoich dyżurów w oglądanym miesiącu (do 500 znaków). Widzi go tylko osoba układająca grafik; możesz go zmieniać także po terminie.</p>
       </section>
       <section>
-        <h3>2. Prośby</h3>
+        <h3>2. Grafik</h3>
+        <p>Zakładka <b>Grafik</b> pokazuje aktualny grafik wszystkich dyżurów — Twoje są podświetlone, a na górze masz ich listę. <b>Tylko moje</b> ukrywa cudze dyżury. Grafik może się jeszcze zmieniać, dopóki osoba układająca go nie skończy.</p>
+      </section>
+      <section>
+        <h3>3. Prośby</h3>
         <p>Ile dyżurów chcesz w miesiącu: łącznie, w Pt/So/Nd, na konkretnym miejscu albo w konkretne dni weekendu. Prośba jest miękka — układanie stara się ją spełnić, ale nie zawsze się da.</p>
       </section>
       <section>
-        <h3>3. Konto</h3>
+        <h3>4. Konto</h3>
         <p>Logujesz się swoim 6-cyfrowym PIN-em. Nie podawaj go nikomu — kto ma Twój PIN, może zmienić Twoje wpisy. Na wspólnym komputerze wyloguj się (koło zębate w prawym górnym rogu). Zapomniany PIN: poproś osobę układającą grafik o nowy.</p>
       </section>
     </article>
