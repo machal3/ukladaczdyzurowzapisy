@@ -8,7 +8,7 @@ Każda osoba loguje się **własnym 6-cyfrowym PIN-em** i może:
 - zostawić **komentarz** do swoich dyżurów w danym miesiącu (do 500 znaków, w tym samym terminie co dostępność),
 - ustawić swoje **prośby** (ile dyżurów chce: łącznie, Pt/So/Nd, na miejscach, w dni weekendu) — obowiązują od
   najbliższego miesiąca, więc od 21. do końca miesiąca są zamknięte,
-- obejrzeć **aktualny grafik** (od poprzedniego miesiąca) — swoje dyżury podświetlone, filtr „Tylko moje”.
+- obejrzeć **grafik** miesięcy oznaczonych w Układaczu jako „Gotowe” (od poprzedniego miesiąca) — swoje dyżury podświetlone, filtr „Tylko moje”.
 
 Nie widzi swoich limitów ani minimów, dostępności i próśb innych, warunków ani gównianości dni — te dane w ogóle
 nie wychodzą z bazy. Z grafiku dostaje tylko imiona na miejscach. Wpisy trafiają wprost do stanu Układacza

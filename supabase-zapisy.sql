@@ -114,9 +114,9 @@ create function public.zapisy_od(d jsonb, dzis date default (now() at time zone 
 $fn$ language sql stable set search_path = '';
 revoke execute on function public.zapisy_od(jsonb, date) from public, anon, authenticated;
 
--- Grafik do podglądu: od 1. dnia poprzedniego miesiąca, najwyżej rok naprzód. Tylko { dzień: { id miejsca: imię } } —
--- bez dostępności, wpisów ręcznych i czegokolwiek innego z grafiku.
--- ponytail: widać aktualny stan, także szkic, który układający jeszcze poprawia; flaga „opublikowane”, gdyby to przeszkadzało
+-- Grafik do podglądu: tylko miesiące oznaczone w Układaczu jako gotowe (data.gotowe['YYYY-MM'] = true), od 1. dnia
+-- poprzedniego miesiąca, najwyżej rok naprzód. Tylko { dzień: { id miejsca: imię } } — bez dostępności, wpisów ręcznych
+-- i czegokolwiek innego z grafiku.
 create function public.zapisy_grafik(d jsonb) returns jsonb as $fn$
   select coalesce(jsonb_object_agg(g.key, g.day), '{}') from (
     select day.key, jsonb_object_agg(slot.key, p->>'name') as day
@@ -124,7 +124,7 @@ create function public.zapisy_grafik(d jsonb) returns jsonb as $fn$
       jsonb_each_text(case when jsonb_typeof(day.value) = 'object' then day.value else '{}' end) slot,
       jsonb_array_elements(coalesce(d->'people', '[]')) p,
       jsonb_array_elements(coalesce(d->'shifts', '[]')) s
-    where day.key ~ '^\d{4}-\d{2}-\d{2}$'
+    where day.key ~ '^\d{4}-\d{2}-\d{2}$' and d->'gotowe'->left(day.key, 7) = 'true'
       and day.key >= to_char(date_trunc('month', (now() at time zone 'Europe/Warsaw')::date) - interval '1 month', 'YYYY-MM-DD')
       and day.key < to_char((now() at time zone 'Europe/Warsaw')::date + 366, 'YYYY-MM-DD')
       and p->>'id' = slot.value and s->>'id' = slot.key

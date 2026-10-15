@@ -28,7 +28,8 @@ async function setup() {
     avail: { ania: { [day(-3)]: 0 }, jan: { [day(5)]: 3 } },
     limits: { ania: { '*': 6 } }, mins: { ania: { '*': 2 } }, wants: {}, rules: [{ id: 'r', who: 'ania', with: 'jan', places: ['oitn'] }],
     schedule: { [day(-3)]: { oitn: 'jan' }, [`${month(0)}-15`]: { oitn: 'ania' }, [`${month(0)}-16`]: { oitn: 'jan', zniknięte: 'ania' },
-      [`${month(-3)}-10`]: { oitn: 'jan' }, [`${month(1)}-02`]: { oitn: 'nikt' } },
+      [`${month(-3)}-10`]: { oitn: 'jan' }, [`${month(1)}-02`]: { oitn: 'nikt' }, [`${month(2)}-02`]: { oitn: 'ania' } },
+    gotowe: { [month(-3)]: true, [month(0)]: true, [month(1)]: true }, // month(2) to jeszcze szkic
   };
   await db.query('select public.save_state($1, $2)', [ADMIN, data]);
   const call = async (fn, ...args) => (await db.query(`select public.${fn}(${args.map((_, i) => `$${i + 1}`).join(', ')}) as r`, args)).rows[0].r;
@@ -57,6 +58,7 @@ test('logowanie PIN-em, sesja i dane tylko tej osoby', async () => {
   assert.deepEqual(me.grafik[`${month(0)}-16`], { oitn: 'Jan Nowak' });
   assert.equal(me.grafik[`${month(-3)}-10`], undefined);
   assert.equal(me.grafik[`${month(1)}-02`], undefined);
+  assert.equal(me.grafik[`${month(2)}-02`], undefined, 'miesiąc niegotowy — osoby go nie widzą');
   const text = JSON.stringify({ ...me, grafik: null });
   for (const secret of ['Jan', 'jan', 'limits', 'mins', 'rules', 'schedule', '"6"', 'Ex Osoba']) assert.ok(!text.includes(secret), secret);
   assert.match((await call('osoba_load', 'f'.repeat(64))).error, /Sesja/);
