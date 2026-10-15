@@ -12,7 +12,7 @@ create table if not exists public.zapisy_sekret (id int primary key default 1 ch
 insert into public.zapisy_sekret (pepper) values (extensions.gen_random_bytes(32)) on conflict do nothing;
 
 -- pid = person.id z dyzury.data->'people'. PIN tylko jako HMAC: logowanie samym PIN-em szuka konta po haszu,
--- więc hasz musi być deterministyczny (bcrypt z solą by tu nie zadziałał); unique = PIN-y się nie powtarzają.
+-- więc hasz musi być deterministyczny (bcrypt z solą by tu nie zadziałał) — unique = PIN-y się nie powtarzają.
 create table if not exists public.konta (
   pid text primary key,
   pin_hash text not null unique,
@@ -47,14 +47,12 @@ drop function if exists public.admin_set_pin(text, text, text);
 drop function if exists public.admin_usun_konto(text, text);
 drop function if exists public.zapisy_od(jsonb);
 
-create function public.pin_hash(p text) returns text
-language sql stable security definer set search_path = '' as $$
+create function public.pin_hash(p text) returns text as $fn$
   select encode(extensions.hmac(convert_to(p, 'UTF8'), (select pepper from public.zapisy_sekret where id = 1), 'sha256'), 'hex')
-$$;
+$fn$ language sql stable security definer set search_path = '';
 
 -- token → pid (null = brak, wygasła albo osoba usunięta w Układaczu)
-create function public.osoba_sesja(t text) returns text
-language plpgsql stable security definer set search_path = '' as $$
+create function public.osoba_sesja(t text) returns text as $fn$
 declare v_pid text;
 begin
   if t is null or t !~ '^[0-9a-f]{64}$' then return null; end if;
@@ -64,16 +62,15 @@ begin
   if not exists (select 1 from public.dyzury d, jsonb_array_elements(d.data->'people') e
                  where d.id = 1 and e->>'id' = v_pid and not coalesce((e->>'gone')::boolean, false)) then return null; end if;
   return v_pid;
-end $$;
+end $fn$ language plpgsql stable security definer set search_path = '';
 
 -- Limity prób (sam PIN: ~30 kont na milion kombinacji, więc to główna ochrona):
 --   5 złych prób / 15 min z jednego adresu, 100 złych prób / 24 h łącznie → logowanie wstrzymane dla wszystkich
 --   (zalogowane sesje działają dalej). Próby po kolei (blokada) z 1 s przerwy po złej, więc równoległość nic nie daje.
 -- Przy tych limitach trafienie czyjegoś PIN-u to ok. 100 × 30 / 10⁶ ≈ 0,3% na dobę ciągłego ataku.
 -- ponytail: adres z nagłówków proxy (cf-connecting-ip / x-forwarded-for) da się czasem podrobić — dlatego twardą
--- granicą jest limit globalny; gdyby to nie wystarczało: logowanie nazwiskiem + PIN-em.
-create function public.osoba_login(p text) returns jsonb
-language plpgsql security definer set search_path = '' as $$
+-- granicą jest limit globalny — gdyby to nie wystarczało: logowanie nazwiskiem + PIN-em.
+create function public.osoba_login(p text) returns jsonb as $fn$
 declare
   h json := coalesce(nullif(current_setting('request.headers', true), ''), '{}')::json;
   v_ip text := coalesce(h->>'cf-connecting-ip', trim(split_part(h->>'x-forwarded-for', ',', 1)), '');
@@ -101,18 +98,16 @@ begin
   insert into public.sesje values (encode(sha256(t), 'hex'), v_pid, now() + interval '90 days');
   update public.konta set last_login = now() where pid = v_pid;
   return jsonb_build_object('token', encode(t, 'hex'), 'name', v_name);
-end $$;
+end $fn$ language plpgsql security definer set search_path = '';
 
 -- Pierwszy dzień, który osoba może zmieniać: dziś (czas polski) albo 1. dzień miesiąca data.zapisyOd, jeśli późniejszy
-create function public.zapisy_od(d jsonb) returns date
-language sql stable set search_path = '' as $$
+create function public.zapisy_od(d jsonb) returns date as $fn$
   select greatest((now() at time zone 'Europe/Warsaw')::date,
     case when d->>'zapisyOd' ~ '^\d{4}-(0[1-9]|1[0-2])$' then (d->>'zapisyOd' || '-01')::date else '-infinity'::date end)
-$$;
+$fn$ language sql stable set search_path = '';
 revoke execute on function public.zapisy_od(jsonb) from public;
 
-create function public.osoba_load(t text) returns jsonb
-language plpgsql stable security definer set search_path = '' as $$
+create function public.osoba_load(t text) returns jsonb as $fn$
 declare v_pid text := public.osoba_sesja(t); d jsonb;
 begin
   if v_pid is null then return jsonb_build_object('error', 'Sesja wygasła'); end if;
@@ -124,13 +119,12 @@ begin
     'avail', coalesce(d->'avail'->v_pid, '{}'),
     'wants', coalesce(d->'wants'->v_pid, '{}'),
     'od', public.zapisy_od(d));
-end $$;
+end $fn$ language plpgsql stable security definer set search_path = '';
 
 -- Zapis całej dostępności i próśb osoby. Dni przed zapisy_od zostają takie, jak były (przysłane są pomijane).
 -- avail: { 'YYYY-MM-DD': 0|1|3|4 } (2 = „Mogę” = brak wpisu), najwyżej 400 dni naprzód.
 -- wants: { id miejsca | '*' | we | d56 | d4 | d5 | d6: 0–31 }.
-create function public.osoba_save(t text, a jsonb, w jsonb) returns jsonb
-language plpgsql security definer set search_path = '' as $$
+create function public.osoba_save(t text, a jsonb, w jsonb) returns jsonb as $fn$
 declare
   v_pid text := public.osoba_sesja(t); d jsonb; od date; k text; v jsonb; dt date;
   na jsonb := '{}'; nw jsonb := '{}'; allowed text[];
@@ -172,29 +166,26 @@ begin
   where id = 1;
   update public.konta set last_change = now() where pid = v_pid;
   return '{}';
-end $$;
+end $fn$ language plpgsql security definer set search_path = '';
 
-create function public.osoba_logout(t text) returns jsonb
-language plpgsql security definer set search_path = '' as $$
+create function public.osoba_logout(t text) returns jsonb as $fn$
 begin
   if t ~ '^[0-9a-f]{64}$' then delete from public.sesje where token_hash = encode(sha256(decode(t, 'hex')), 'hex'); end if;
   return '{}';
-end $$;
+end $fn$ language plpgsql security definer set search_path = '';
 
 -- Dla Układacza (PIN administratora, ten sam limit prób co load_state/save_state)
-create function public.admin_konta(p text) returns jsonb
-language plpgsql security definer set search_path = '' as $$
+create function public.admin_konta(p text) returns jsonb as $fn$
 declare err text := public.check_pin(p);
 begin
   if err is not null then return jsonb_build_object('error', err); end if;
   return jsonb_build_object(
     'konta', (select coalesce(jsonb_agg(jsonb_build_object('pid', pid, 'created_at', created_at, 'last_login', last_login, 'last_change', last_change)), '[]') from public.konta),
     'fails24h', (select count(*) from public.zapisy_fails where at > now() - interval '24 hours'));
-end $$;
+end $fn$ language plpgsql security definer set search_path = '';
 
--- Nadaje (albo zmienia) PIN osoby; stare sesje tej osoby przestają działać
-create function public.admin_set_pin(p text, osoba text, nowy text) returns jsonb
-language plpgsql security definer set search_path = '' as $$
+-- Nadaje (albo zmienia) PIN osoby — stare sesje tej osoby przestają działać
+create function public.admin_set_pin(p text, osoba text, nowy text) returns jsonb as $fn$
 declare err text := public.check_pin(p);
 begin
   if err is not null then return jsonb_build_object('error', err); end if;
@@ -209,16 +200,15 @@ begin
     on conflict (pid) do update set pin_hash = excluded.pin_hash;
   delete from public.sesje where pid = osoba;
   return '{}';
-end $$;
+end $fn$ language plpgsql security definer set search_path = '';
 
-create function public.admin_usun_konto(p text, osoba text) returns jsonb
-language plpgsql security definer set search_path = '' as $$
+create function public.admin_usun_konto(p text, osoba text) returns jsonb as $fn$
 declare err text := public.check_pin(p);
 begin
   if err is not null then return jsonb_build_object('error', err); end if;
   delete from public.konta where pid = osoba; -- sesje znikają kaskadowo
   return '{}';
-end $$;
+end $fn$ language plpgsql security definer set search_path = '';
 
 revoke execute on function public.pin_hash(text), public.osoba_sesja(text), public.osoba_login(text), public.osoba_load(text),
   public.osoba_save(text, jsonb, jsonb), public.osoba_logout(text), public.admin_konta(text), public.admin_set_pin(text, text, text),

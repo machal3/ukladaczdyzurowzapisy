@@ -35,8 +35,7 @@ drop function if exists public.check_pin(text);
 -- Limit: 20 nieudanych prób na 15 minut dla wszystkich naraz; sprawdzanie po kolei (blokada), więc równoległe próby nie omijają limitu.
 -- 4 cyfry przy tym limicie: zgadnięcie średnio ~2,5 doby ciągłych prób.
 -- ponytail: limit wspólny — atakujący może na 15 min zablokować też prawowitych użytkowników; limit per IP, gdyby to się zdarzało
-create function public.check_pin(p text) returns text
-language plpgsql security definer set search_path = '' as $$
+create function public.check_pin(p text) returns text as $fn$
 begin
   perform pg_advisory_xact_lock(hashtext('check_pin'));
   if (select count(*) from public.pin_fails where at > now() - interval '15 minutes') >= 20 then
@@ -47,22 +46,20 @@ begin
   insert into public.pin_fails default values;
   perform pg_sleep(1);
   return 'Zły PIN';
-end $$;
+end $fn$ language plpgsql security definer set search_path = '';
 
-create function public.load_state(p text) returns jsonb
-language plpgsql security definer set search_path = '' as $$
+create function public.load_state(p text) returns jsonb as $fn$
 declare err text := public.check_pin(p);
 begin
   if err is not null then return jsonb_build_object('error', err); end if;
   return jsonb_build_object('data', (select data from public.dyzury where id = 1));
-end $$;
+end $fn$ language plpgsql security definer set search_path = '';
 
 -- Zapisy na dyżury (osobna aplikacja) zmieniają avail[pid] i wants[pid] wprost w tym wierszu i stawiają
 -- data.stamps[pid] = czas zmiany. Układacz odsyła stamps takie, jakie wczytał, więc nowszy stamp w bazie
 -- = osoba zmieniła coś po wczytaniu — wtedy jej avail/wants/stamp zostają z bazy, a nie z (starszego) stanu Układacza.
--- ponytail: gdy Układacz i osoba zmienią tę samą osobę naraz, wygrywa osoba; Układacz widzi to po odświeżeniu.
-create function public.save_state(p text, d jsonb) returns jsonb
-language plpgsql security definer set search_path = '' as $$
+-- ponytail: gdy Układacz i osoba zmienią tę samą osobę naraz, wygrywa osoba — Układacz widzi to po odświeżeniu.
+create function public.save_state(p text, d jsonb) returns jsonb as $fn$
 declare err text := public.check_pin(p); old jsonb; k text;
 begin
   if err is not null then return jsonb_build_object('error', err); end if;
@@ -78,7 +75,7 @@ begin
   insert into public.dyzury (id, data) values (1, d)
   on conflict (id) do update set data = excluded.data, updated_at = now();
   return '{}';
-end $$;
+end $fn$ language plpgsql security definer set search_path = '';
 
 revoke execute on function public.check_pin(text), public.load_state(text), public.save_state(text, jsonb) from public;
 grant execute on function public.load_state(text), public.save_state(text, jsonb) to anon;
