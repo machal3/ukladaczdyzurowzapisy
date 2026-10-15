@@ -1,0 +1,20 @@
+/* Dodatki Zapisów do style.css (kopia z Układacza — tamten plik zmieniaj tylko kopiując go ponownie). */
+.app-header h1 small { display: block; margin-top: 4px; font: var(--type-title); letter-spacing: 0; color: var(--muted); }
+#save-state { font: var(--type-label); color: var(--muted); white-space: nowrap; }
+#save-state.saved { color: var(--strong); }
+#save-state.error { color: var(--warn); white-space: normal; max-width: 24ch; }
+#status .summary { display: flex; flex-wrap: wrap; gap: 6px; }
+.cell.past { opacity: .5; }
+.cell.past .avail { cursor: default; }
+.avail:enabled { cursor: pointer; }
+#wants .counts :is(th, td) { text-align: left; }
+#wants .counts th[scope=row] { font-weight: 500; }
+#wants .counts th small, #wants .counts thead small { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
+#wants .counts tr > :last-child { width: 96px; text-align: center; }
+#wants .counts input { width: 100%; max-width: 80px; min-height: 44px; padding: 8px; text-align: center; }
+#wants .counts input:invalid { outline: 2px solid var(--warn); }
+@media (max-width: 760px) {
+  .app-header h1 small { font-size: 14px; line-height: 20px; }
+  #save-state.error { max-width: 14ch; }
+}
+body:not([data-tab=calendar]) .month { display: none; } /* miesiąc dotyczy tylko kalendarza; prośby obowiązują co miesiąc */

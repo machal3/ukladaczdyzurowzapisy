@@ -1,0 +1,10 @@
+*.docx
+*.sql
+.claude
+.idea
+server.js
+*.test.js
+node_modules
+ukladacz
+eslint.config.js
+seed-piny*
