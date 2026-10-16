@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dateKey, badOf, setLevel, nextLevel, monthSummary, wantRows, parseWant, LEVELS, deadline, monthKey, myShifts } from './kalendarz.js';
+import { dateKey, badOf, setLevel, nextLevel, monthSummary, WANT_ROWS, onlyAsked, parseWant, LEVELS, deadline, monthKey, myShifts } from './kalendarz.js';
 
 test('gównianość jak w Układaczu: Pt gówniany, So/Nd słabe, ręczna ocena wygrywa', () => {
   assert.deepEqual([2, 3, 4, 5, 6, 7, 8].map((d) => badOf({}, 2026, 10, d)), [0, 0, 0, 0, 2, 1, 1]); // 2.11.2026 = pon
@@ -22,8 +22,9 @@ test('podsumowanie miesiąca liczy tylko dni tego miesiąca', () => {
 });
 
 test('prośby: klucze zgodne ze state.wants, bez limitów; walidacja pola', () => {
-  const keys = wantRows([{ id: 'a1', name: 'OITN' }]).map((r) => r.key);
-  assert.deepEqual(keys, ['*', 'we', 'a1', 'd56', 'd4', 'd5', 'd6']);
+  assert.deepEqual(WANT_ROWS.map((r) => r.key), ['*', 'd56']);
+  assert.deepEqual(onlyAsked({ '*': 5, d56: 2, we: 3, oitn: 1 }), { '*': 5, d56: 2 }, 'dawne prośby odpadają');
+  assert.deepEqual(onlyAsked(undefined), {});
   assert.equal(parseWant(''), undefined);
   assert.equal(parseWant(' 3 '), 3);
   assert.equal(parseWant('0'), 0);

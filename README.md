@@ -6,7 +6,7 @@ Każda osoba loguje się **własnym 4-cyfrowym PIN-em** i może:
 - zaznaczyć w kalendarzu, kiedy może / chce / musi / nie może dyżurować (te same poziomy co w Układaczu) —
   **na dany miesiąc do 20. dnia poprzedniego miesiąca**, później miesiąc jest tylko do podglądu,
 - zostawić **komentarz** do swoich dyżurów w danym miesiącu (do 500 znaków, w tym samym terminie co dostępność),
-- ustawić swoje **prośby** (ile dyżurów chce: łącznie, Pt/So/Nd, na miejscach, w dni weekendu) — obowiązują od
+- ustawić swoje **prośby**: ile dyżurów chce łącznie i ile z nich w soboty i niedziele — obowiązują od
   najbliższego miesiąca, więc od 21. do końca miesiąca są zamknięte,
 - obejrzeć **grafik** miesięcy oznaczonych w Układaczu jako „Gotowe” (od poprzedniego miesiąca) — swoje dyżury podświetlone, filtr „Tylko moje”, dni w kolorach gównianości jak w Układaczu.
 

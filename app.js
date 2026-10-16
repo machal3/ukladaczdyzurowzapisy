@@ -1,18 +1,17 @@
 // Zapisy na dyżury: osoba (4-cyfrowy PIN) ustawia własną dostępność, prośby i komentarze do miesięcy
 // oraz ogląda grafik (same imiona na miejscach). Limity, minima i dostępność innych zostają w bazie (supabase-zapisy.sql).
-import { dateKey, daysInMonth, weekday, LEVELS, BAD, badOf, availOf, setLevel, nextLevel, monthSummary, wantRows, parseWant, deadline, monthKey, myShifts } from './kalendarz.js';
+import { dateKey, daysInMonth, weekday, LEVELS, BAD, badOf, availOf, setLevel, nextLevel, monthSummary, WANT_ROWS, onlyAsked, parseWant, deadline, monthKey, myShifts } from './kalendarz.js';
 import { hasSession, login, load, logout, save, busy, SessionError } from './api.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const DAY_NAMES = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela'];
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
-const CHEV = '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
 const ORDER = [2, 3, 4, 0, 1]; // kolejność w pasku pędzla, jak w Układaczu
 const COMMENT_MAX = 500;
 
 const me = await start();
-let avail = me.avail, wants = me.wants, uwagi = me.uwagi ?? {};
+let avail = me.avail, wants = onlyAsked(me.wants), uwagi = me.uwagi ?? {};
 const grafik = me.grafik ?? {}, bad = me.bad ?? {};
 const now = new Date();
 const ym = (d) => ({ y: d.getFullYear(), m: d.getMonth() });
@@ -138,16 +137,11 @@ function render() { renderMonth(); renderAvail(); renderGrafik(); }
 // Prośby nie są per miesiąc — po terminie najbliższego miesiąca (od 21.) zamknięte do 1. (pilnuje baza: me.prosby)
 const wantsOpen = me.prosby !== false;
 function renderWants() {
-  const rows = wantRows(me.shifts);
   const row = (r) => `<tr><th scope="row">${esc(r.label)}${r.hint ? `<small>${r.hint}</small>` : ''}</th>` +
     `<td><input type="number" min="0" max="31" step="1" inputmode="numeric" placeholder="—" data-want="${esc(r.key)}" value="${wants[r.key] ?? ''}" ${wantsOpen ? '' : 'disabled'} aria-label="Prośba: ${esc(r.label)}"></td></tr>`;
   const head = '<thead><tr><td></td><th scope="col">Prośba<small>ile dyżurów</small></th></tr></thead>';
-  const group = (name, rs) => rs.length ? `<details class="limits-group" ${rs.some((r) => wants[r.key] != null) ? 'open' : ''}><summary><span>${name}</span>${CHEV}</summary>` +
-    `<table class="counts">${head}<tbody>${rs.map(row).join('')}</tbody></table></details>` : '';
   $('#wants').innerHTML = (wantsOpen ? '' : `<p class="closed-msg">Termin zapisów na ${monthName(shift(ym(now), 1))} minął — prośby są tylko do podglądu, zmienisz je od 1. dnia następnego miesiąca.</p>`) +
-    `<table class="counts">${head}<tbody>${rows.filter((r) => !r.group).map(row).join('')}</tbody></table>` +
-    group(`Na miejscach <small>${esc(me.shifts.map((s) => s.name).join(', '))}</small>`, rows.filter((r) => r.group === 'place')) +
-    group('Weekendy w szczegółach <small>So + Nd, osobno Pt / So / Nd</small>', rows.filter((r) => r.group === 'we'));
+    `<table class="counts">${head}<tbody>${WANT_ROWS.map(row).join('')}</tbody></table>`;
 }
 
 function showSave(st) {
@@ -238,7 +232,8 @@ document.addEventListener('visibilitychange', async () => {
   let d;
   try { d = await load(); } catch (e) { if (e instanceof SessionError) location.reload(); return; }
   if (busy()) return; // osoba zdążyła coś zmienić — jej zmiana jest nowsza
-  ({ avail, wants } = d);
+  avail = d.avail;
+  wants = onlyAsked(d.wants);
   uwagi = d.uwagi ?? {};
   if (!$('#wants').contains(document.activeElement)) renderWants();
   if (document.activeElement !== $('#comment-text')) delete $('#comment-text').dataset.month;

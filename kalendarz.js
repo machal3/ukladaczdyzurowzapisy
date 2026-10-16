@@ -32,16 +32,14 @@ export function monthSummary(avail, y, m) {
   return out;
 }
 
-// Wiersze próśb: te same klucze co state.wants w Układaczu (WANT_LABEL + id miejsc). Limitów i minimów tu nie ma.
-export const wantRows = (shifts) => [
+// Prośby osoby: tylko ile dyżurów łącznie i ile z nich w soboty i niedziele. Klucze jak state.wants w Układaczu;
+// ta sama lista w osoba_save (supabase-zapisy.sql) i OSOBA_WANTS w Układaczu. Resztę próśb ustawia tylko administrator.
+export const WANT_ROWS = [
   { key: '*', label: 'Łącznie', hint: 'wszystkie dyżury w miesiącu' },
-  { key: 'we', label: 'Pt/So/Nd', hint: 'piątki, soboty i niedziele razem' },
-  ...shifts.map((s) => ({ key: s.id, label: s.name, hint: 'na tym miejscu', group: 'place' })),
-  { key: 'd56', label: 'So + Nd', hint: 'soboty i niedziele razem', group: 'we' },
-  { key: 'd4', label: 'Piątki', hint: '', group: 'we' },
-  { key: 'd5', label: 'Soboty', hint: '', group: 'we' },
-  { key: 'd6', label: 'Niedziele', hint: '', group: 'we' },
+  { key: 'd56', label: 'Soboty i niedziele', hint: 'ile z nich w So + Nd' },
 ];
+// dawne prośby (np. Pt/So/Nd, miejsca) nie są już pokazywane ani odsyłane — znikają przy pierwszym zapisie osoby
+export const onlyAsked = (wants) => Object.fromEntries(Object.entries(wants ?? {}).filter(([k]) => WANT_ROWS.some((r) => r.key === k)));
 
 // Wartość pola prośby: '' = brak prośby (usuwa klucz), inaczej liczba całkowita 0–31; null = niepoprawna
 export function parseWant(text) {

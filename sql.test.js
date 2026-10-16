@@ -90,18 +90,18 @@ test('zapis: walidacja, zamknięte miesiące nietykalne, inne pola stanu bez zmi
   const { token } = await call('osoba_login', '4043');
   const before = await state();
   const closed = plus(od, -1), om = od.slice(0, 7), { prosby } = await call('osoba_load', token);
-  assert.deepEqual(await call('osoba_save', token, { [day(-3)]: 3, [closed]: 4, [od]: 0, [plus(od, 1)]: 2, [plus(od, 2)]: 4 }, { oitn: 3, '*': 5, we: null },
+  assert.deepEqual(await call('osoba_save', token, { [day(-3)]: 3, [closed]: 4, [od]: 0, [plus(od, 1)]: 2, [plus(od, 2)]: 4 }, { d56: 3, '*': 5 },
     { [closed.slice(0, 7)]: 'po terminie', [om]: 'wolę OITN', [month(3)]: '   ' }), {});
   const after = await state();
   assert.deepEqual(after.avail.ania, { [day(-3)]: 0, [od]: 0, [plus(od, 2)]: 4 }); // zamknięte z bazy, „Mogę” bez wpisu
-  assert.deepEqual(after.wants.ania, prosby ? { oitn: 3, '*': 5 } : {}); // od 21. prośby zamknięte (test niżej)
+  assert.deepEqual(after.wants.ania, prosby ? { d56: 3, '*': 5 } : {}); // od 21. prośby zamknięte (test niżej)
   assert.deepEqual(after.uwagi.ania, { [om]: 'wolę OITN' }); // zamknięty miesiąc i puste pominięte
   assert.ok(after.stamps.ania);
   for (const k of ['people', 'shifts', 'limits', 'mins', 'rules', 'schedule', 'availAdm', 'wantsAdm']) assert.deepEqual(after[k], before[k], k);
   assert.deepEqual(after.avail.jan, before.avail.jan);
   for (const [a, w, why] of [
     [{ [day(1)]: 5 }, {}, /poziom/], [{ [day(1)]: '3' }, {}, /poziom/], [{ '2026-02-30': 1 }, {}, /data/], [{ [day(500)]: 1 }, {}, /data/],
-    [{ 'x': 1 }, {}, /data/], [{}, { limits: 1 }, /Nieznana/], [{}, { oitn: 40 }, /0–31/], [{}, { oitn: -1 }, /0–31/], [{}, { oitn: 1.5 }, /0–31/],
+    [{ 'x': 1 }, {}, /data/], [{}, { limits: 1 }, /Nieznana/], [{}, { oitn: 1 }, /Nieznana/], [{}, { we: 2 }, /Nieznana/], [{}, { d56: 40 }, /0–31/], [{}, { d56: -1 }, /0–31/], [{}, { d56: 1.5 }, /0–31/],
     [[], {}, /Nieprawidłowe/],
   ]) assert.match((await call('osoba_save', token, a, w, {})).error, why, JSON.stringify([a, w]));
   for (const [c, why] of [[{ [om]: 'x'.repeat(501) }, /500/], [{ [om]: 5 }, /500/], [{ '2026-13': 'a' }, /miesiąc/], [{ [month(14)]: 'a' }, /miesiąc/], [[], /Nieprawidłowe/]])
@@ -133,14 +133,14 @@ test('save_state Układacza nie nadpisuje zmian osoby zrobionych po wczytaniu', 
   const loaded = (await call('load_state', ADMIN)).data; // Układacz wczytał dane
   const { token } = await call('osoba_login', '4043');
   const { prosby } = await call('osoba_load', token);
-  await call('osoba_save', token, { [od]: 3 }, { oitn: 2 }, { [od.slice(0, 7)]: 'uwaga' }); // osoba zmienia
+  await call('osoba_save', token, { [od]: 3 }, { d56: 2 }, { [od.slice(0, 7)]: 'uwaga' }); // osoba zmienia
   loaded.avail.jan = { [day(8)]: 0 }; // Układacz zmienia kogoś innego i zapisuje stary stan Ani
   loaded.limits.ania = { '*': 4 };
   loaded.availAdm.ania = { [od]: 0 }; // … i koryguje Anię — korekta jest osobno, więc zostaje
   await db.query('select public.save_state($1, $2)', [ADMIN, loaded]);
   let s = await state();
   assert.deepEqual(s.avail.ania, { [day(-3)]: 0, [od]: 3 });
-  assert.deepEqual(s.wants.ania, prosby ? { oitn: 2 } : {});
+  assert.deepEqual(s.wants.ania, prosby ? { d56: 2 } : {});
   assert.deepEqual(s.uwagi.ania, { [od.slice(0, 7)]: 'uwaga' });
   assert.deepEqual(s.avail.jan, { [day(8)]: 0 });
   assert.deepEqual(s.limits.ania, { '*': 4 });

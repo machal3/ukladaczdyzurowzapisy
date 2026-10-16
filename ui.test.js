@@ -168,13 +168,13 @@ test('prośby: wpis, czyszczenie i odrzucenie złej wartości', async (t) => {
   assert.equal(s.w.document.body.dataset.tab, 'settings');
   assert.equal(s.$('[data-want="*"]').value, '4');
   const set = (k, v) => { const i = s.$(`[data-want="${k}"]`); i.value = v; i.dispatchEvent(new s.w.Event('input', { bubbles: true })); };
-  set('s1', '3');
+  assert.equal(s.w.document.querySelectorAll('#wants input').length, 2); // tylko Łącznie i So + Nd
+  set('d56', '3');
   set('*', '');
-  set('we', '99');
+  set('d56', '99'); // zła wartość nie idzie do zapisu
   await s.wait(450);
   await s.tick();
-  assert.deepEqual(s.db.wants, { s1: 3 });
-  assert.equal(s.w.document.querySelectorAll('#wants input').length, 8); // Łącznie, Pt/So/Nd, 2 miejsca, So+Nd, Pt, So, Nd
+  assert.deepEqual(s.db.wants, { d56: 3 });
 });
 
 test('po terminie: prośby i komentarz zamkniętego miesiąca tylko do podglądu', async (t) => {

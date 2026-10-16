@@ -161,7 +161,7 @@ end $fn$ language plpgsql stable security definer set search_path = '';
 
 -- Zapis całej dostępności i próśb osoby. Dni przed zapisy_od zostają takie, jak były (przysłane są pomijane).
 -- avail: { 'YYYY-MM-DD': 0|1|3|4 } (2 = „Mogę” = brak wpisu), najwyżej 400 dni naprzód.
--- wants: { id miejsca | '*' | we | d56 | d4 | d5 | d6: 0–31 }.
+-- wants: { '*' | d56: 0–31 } — inne klucze (dawne: miejsca, we, d4–d6) są odrzucane; ustawia je tylko administrator.
 -- Prośby po terminie najbliższego miesiąca zostają takie, jak były (patrz zapisy_od).
 -- c (komentarze): { 'YYYY-MM': tekst do 500 znaków } — od miesiąca zapisy_od do roku naprzód, wcześniejsze zostają.
 create function public.osoba_save(t text, a jsonb, w jsonb, c jsonb) returns jsonb as $fn$
@@ -191,8 +191,7 @@ begin
     end if;
     if dt >= od and v::text <> '2' then na := na || jsonb_build_object(k, v); end if;
   end loop;
-  allowed := array['*', 'we', 'd56', 'd4', 'd5', 'd6'] ||
-    array(select s->>'id' from jsonb_array_elements(coalesce(d->'shifts', '[]')) s);
+  allowed := array['*', 'd56']; -- osoba prosi tylko o liczbę łącznie i w So + Nd (WANT_ROWS w kalendarz.js)
   if od > (date_trunc('month', (now() at time zone 'Europe/Warsaw')::date) + interval '1 month')::date then
     nw := coalesce(d->'wants'->v_pid, '{}'); -- prośby zamknięte
   else for k, v in select * from jsonb_each(w) loop
