@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dateKey, badOf, setLevel, nextLevel, monthSummary, WANT_ROWS, onlyAsked, parseWant, LEVELS, deadline, monthKey, myShifts } from './kalendarz.js';
+import { dateKey, badOf, setLevel, nextLevel, monthSummary, WANT_ROWS, onlyAsked, parseWant, LEVELS, deadline, monthKey, myShifts, sortShifts } from './kalendarz.js';
 
 test('gównianość jak w Układaczu: Pt gówniany, So/Nd słabe, ręczna ocena wygrywa', () => {
   assert.deepEqual([2, 3, 4, 5, 6, 7, 8].map((d) => badOf({}, 2026, 10, d)), [0, 0, 0, 0, 2, 1, 1]); // 2.11.2026 = pon
@@ -29,6 +29,11 @@ test('prośby: klucze zgodne ze state.wants, bez limitów; walidacja pola', () =
   assert.equal(parseWant(' 3 '), 3);
   assert.equal(parseWant('0'), 0);
   for (const bad of ['32', '-1', '1.5', 'abc', '1e1']) assert.equal(parseWant(bad), null, bad);
+});
+
+test('kolejność miejsc: OITN, PN2, PN1, inne za nimi', () => {
+  const s = sortShifts([{ name: 'PN1' }, { name: 'Inne' }, { name: 'PN2' }, { name: 'oitn' }]);
+  assert.deepEqual(s.map((x) => x.name), ['oitn', 'PN2', 'PN1', 'Inne']);
 });
 
 test('termin zapisów i moje dyżury z grafiku', () => {

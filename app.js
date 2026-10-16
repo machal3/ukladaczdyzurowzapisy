@@ -1,6 +1,6 @@
 // Zapisy na dyżury: osoba (4-cyfrowy PIN) ustawia własną dostępność, prośby i komentarze do miesięcy
 // oraz ogląda grafik (same imiona na miejscach). Limity, minima i dostępność innych zostają w bazie (supabase-zapisy.sql).
-import { dateKey, daysInMonth, weekday, LEVELS, BAD, badOf, availOf, setLevel, nextLevel, monthSummary, WANT_ROWS, onlyAsked, parseWant, deadline, monthKey, myShifts } from './kalendarz.js';
+import { dateKey, daysInMonth, weekday, LEVELS, BAD, badOf, availOf, setLevel, nextLevel, monthSummary, WANT_ROWS, onlyAsked, parseWant, deadline, monthKey, myShifts, sortShifts } from './kalendarz.js';
 import { hasSession, login, load, logout, save, busy, SessionError } from './api.js';
 
 const $ = (s) => document.querySelector(s);
@@ -11,6 +11,7 @@ const ORDER = [2, 3, 4, 0, 1]; // kolejność w pasku pędzla, jak w Układaczu
 const COMMENT_MAX = 500;
 
 const me = await start();
+me.shifts = sortShifts(me.shifts); // jak w Układaczu, także zanim zapisze on nową kolejność
 let avail = me.avail, wants = onlyAsked(me.wants), uwagi = me.uwagi ?? {};
 const grafik = me.grafik ?? {}, bad = me.bad ?? {};
 const now = new Date();

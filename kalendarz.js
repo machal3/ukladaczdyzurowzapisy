@@ -48,6 +48,11 @@ export function parseWant(text) {
   return /^\d{1,2}$/.test(t) && +t <= 31 ? +t : null;
 }
 
+// Kolejność miejsc jak w Układaczu (SHIFT_ORDER w jego app.js): OITN, PN2, PN1, inne za nimi. Zwraca nową tablicę.
+const SHIFT_ORDER = ['OITN', 'PN2', 'PN1'];
+const shiftRank = (s) => { const i = SHIFT_ORDER.indexOf(String(s.name).trim().toUpperCase()); return i < 0 ? SHIFT_ORDER.length : i; };
+export const sortShifts = (shifts) => [...shifts].sort((a, b) => shiftRank(a) - shiftRank(b));
+
 // Termin zapisów na miesiąc m: 20. dzień poprzedniego miesiąca (włącznie). Pilnuje go baza (zapisy_od), tu tylko do opisu.
 export const deadline = (y, m) => new Date(y, m - 1, 20);
 export const monthKey = (y, m) => dateKey(y, m, 1).slice(0, 7);
