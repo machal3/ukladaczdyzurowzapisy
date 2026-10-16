@@ -7,7 +7,18 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const DAY_NAMES = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela'];
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
-const ORDER = [2, 3, 4, 0, 1]; // kolejność w pasku pędzla, jak w Układaczu
+const ORDER = [4, 3, 2, 1, 0]; // kolejność w pasku pędzla: od najważniejszego (Muszę) do Nie mogę
+// ikony pędzla (lucide); na telefonie zostaje sama ikona na kolorze poziomu
+const svg = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const BRUSH_ICON = {
+  '': svg('<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>'), // Po kolei
+  4: svg('<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>'),
+  3: svg('<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>'),
+  2: svg('<path d="M20 6 9 17l-5-5"/>'),
+  1: svg('<path d="M5 12h14"/>'),
+  0: svg('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
+};
+const brushBtn = (l, title) => `<button type="button" class="brush${l === '' ? '' : ` lvl-${l}`}" data-lvl="${l}" aria-pressed="${brush === (l === '' ? null : l)}" title="${title}">${BRUSH_ICON[l]}<span class="lbl">${l === '' ? 'Po kolei' : LEVELS[l]}</span></button>`;
 const COMMENT_MAX = 500;
 
 const me = await start();
@@ -85,13 +96,13 @@ function renderAvail() {
 
   const sum = monthSummary(avail, y, m);
   const counts = ORDER.filter((l) => sum[l]).map((l) => `<span class="pill lvl-${l}">${LEVELS[l]}: ${sum[l]}</span>`).join('');
-  const due = shortDate(deadline(y, m));
+  const due = shortDate(deadline(y, m)), dueShort = deadline(y, m).toLocaleDateString('pl-PL', { day: 'numeric', month: '2-digit' });
   $('#status').classList.toggle('closed', !isOpen);
   $('#status').innerHTML = isOpen
-    ? `<span class="who"><b>Moja dostępność</b><span class="deadline">zapisy do ${due}</span><span class="hint"> — klikaj dni albo wybierz poziom i przeciągnij myszą po dniach:</span></span>` +
-      `<span class="summary" aria-label="Podsumowanie miesiąca">${counts || '<span class="hint">Wszystkie dni: Mogę</span>'}</span>` +
-      `<span class="cycle" role="group" aria-label="Pędzel"><button type="button" class="brush" data-lvl="" aria-pressed="${brush === null}" title="Każdy klik w dzień: następny poziom">Po kolei</button>` +
-      ORDER.map((l) => `<button type="button" class="brush lvl-${l}" data-lvl="${l}" aria-pressed="${brush === l}" title="Klik i przeciąganie po dniach wpisuje: ${LEVELS[l]}">${LEVELS[l]}</button>`).join('<span aria-hidden="true">→</span>') + '</span>'
+    ? `<span class="cycle" role="group" aria-label="Dostępność — wybierz poziom i klikaj albo przeciągaj po dniach">` +
+      ORDER.map((l) => brushBtn(l, `${LEVELS[l]} — klik i przeciąganie po dniach wpisuje ten poziom`)).join('') +
+      brushBtn('', 'Po kolei — każdy klik w dzień: następny poziom') + '</span>' +
+      `<span class="deadline" title="Zapisy na ten miesiąc do ${due}"><span class="long">zapisy do ${due}</span><span class="short" aria-hidden="true">do ${dueShort}</span></span>`
     : `<span class="who"><b>Zapisy zamknięte</b><span class="closed-msg">Na ${monthName(v)} można było się zapisać do ${due}. Dostępność jest tylko do podglądu.</span></span>` +
       `<span class="summary">${counts}</span><button type="button" class="ghost outline" data-go="grafik">Zobacz grafik →</button>`;
 

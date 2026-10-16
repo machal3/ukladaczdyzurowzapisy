@@ -39,6 +39,27 @@ body:not([data-tab=grafik]) #grafik-tab { display: none; }
 #status.closed [data-go] { margin-left: auto; min-height: 40px; padding: 8px 18px; }
 #status .closed-msg, #wants .closed-msg { display: block; margin-top: 2px; color: var(--muted); }
 #status .who { min-width: 0; }
+/* Pasek „Dostępność”: same przyciski poziomów w jednej linii (Muszę → Nie mogę, Po kolei), termin z prawej */
+#status:not(.closed) { flex-wrap: nowrap; padding: 8px 12px 8px 8px; }
+#status:not(.closed) .cycle { flex: 0 1 auto; flex-wrap: nowrap; order: 0; gap: 4px; min-width: 0; margin: 0; padding: 0; overflow: visible; } /* bije #status.pinned .cycle ze style.css */
+#status .cycle .brush { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 12px 6px 10px; white-space: nowrap; }
+#status .cycle .brush svg { width: 16px; height: 16px; }
+#status .cycle .brush[aria-pressed=true] svg { stroke-width: 2.6; }
+#status:not(.closed) .deadline { flex: none; margin-left: auto; white-space: nowrap; }
+#status .deadline .short { display: none; }
+/* węższe ekrany: najpierw same ikony; tekst każdego poziomu zostaje w title i dla czytnika */
+@media (max-width: 1099px) {
+  #status .cycle .brush { width: 40px; padding: 0; justify-content: center; }
+  #status .cycle .brush .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+@media (max-width: 760px) {
+  #status:not(.closed) { gap: 8px; padding: 6px 8px 6px 6px; }
+  #status:not(.closed) .cycle { gap: 2px; }
+  #status .cycle .brush { width: 36px; min-height: 36px; }
+  #status:not(.closed) .deadline { margin-left: auto; padding-inline: 8px; }
+  #status .deadline .short { display: inline; }
+  #status .deadline .long { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+}
 
 /* Komentarz do miesiąca */
 .comment { padding: 20px 24px; }
