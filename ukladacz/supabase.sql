@@ -1,5 +1,8 @@
 -- Uruchom w Supabase: SQL Editor → wklej → Run (można puścić ponownie).
 -- Dostęp: PIN wpisywany w aplikacji, sprawdzany tutaj (tabele są niewidoczne z zewnątrz, tylko przez funkcje poniżej).
+-- Po poprawnym PIN-ie admin_login daje token sesji — przeglądarka trzyma tylko token, nie PIN.
+
+create extension if not exists pgcrypto with schema extensions;
 
 create table if not exists public.dyzury (
   id int primary key default 1 check (id = 1), -- jeden wspólny grafik
@@ -15,28 +18,53 @@ create table if not exists public.access (pin text primary key);
 delete from public.access where pin = '1122'; -- dawny domyślny PIN był jawny w repo
 -- Brak domyślnego PIN-u: po pierwszym uruchomieniu ustaw własny (min. 4 znaki):
 --   insert into public.access values ('4821');
--- Zmiana PIN-u: update public.access set pin = '4821';
+-- Zmiana PIN-u: update public.access set pin = '4821';  (wylogowuje wszystkie sesje — trigger niżej)
 alter table public.access drop constraint if exists pin_dlugi;
 alter table public.access add constraint pin_dlugi check (length(pin) >= 4);
 
 -- nieudane próby (do limitu)
 create table if not exists public.pin_fails (at timestamptz not null default now());
 
+-- sesje administratora: w przeglądarce token (losowe 32 bajty), w bazie tylko jego sha256
+create table if not exists public.admin_sesje (token_hash text primary key, expires_at timestamptz not null);
+
 alter table public.dyzury enable row level security; -- bez polityk: bezpośrednio niedostępne
 alter table public.access enable row level security;
 alter table public.pin_fails enable row level security;
-revoke all on public.dyzury, public.access, public.pin_fails from anon, authenticated;
+alter table public.admin_sesje enable row level security;
+revoke all on public.dyzury, public.access, public.pin_fails, public.admin_sesje from anon, authenticated;
+
+-- każda zmiana PIN-u kończy wszystkie sesje (ktoś, kto znał stary PIN, traci dostęp)
+create or replace function public.access_zmiana() returns trigger as $fn$
+begin
+  delete from public.admin_sesje where true;
+  return null;
+end $fn$ language plpgsql security definer set search_path = '';
+drop trigger if exists access_zmiana on public.access;
+create trigger access_zmiana after insert or update or delete on public.access for each statement execute function public.access_zmiana();
+revoke execute on function public.access_zmiana() from public, anon, authenticated;
 
 -- Błędy są zwracane jako { error }, a nie przez raise — raise cofnąłby zapis nieudanej próby.
 drop function if exists public.load_state(text);
 drop function if exists public.save_state(text, jsonb);
 drop function if exists public.check_pin(text);
+drop function if exists public.admin_login(text);
+drop function if exists public.admin_logout(text);
 
--- Limit: 20 nieudanych prób na 15 minut dla wszystkich naraz; sprawdzanie po kolei (blokada), więc równoległe próby nie omijają limitu.
+-- p = token sesji z admin_login (64 znaki hex) albo PIN. Token nie liczy się do limitu prób (256 bitów — nie do zgadnięcia),
+-- więc zalogowany administrator wczytuje i zapisuje dalej, nawet gdy ktoś wyczerpie limit złymi PIN-ami.
+-- Limit: 20 nieudanych prób PIN-u na 15 minut dla wszystkich naraz; sprawdzanie po kolei (blokada), więc równoległe próby nie omijają limitu.
 -- 4 cyfry przy tym limicie: zgadnięcie średnio ~2,5 doby ciągłych prób.
--- ponytail: limit wspólny — atakujący może na 15 min zablokować też prawowitych użytkowników; limit per IP, gdyby to się zdarzało
+-- Bez pg_sleep: przerwanie zapytania (np. statement_timeout) w trakcie czekania cofnęłoby zapis nieudanej próby,
+-- a poprawny PIN wracałby szybciej — limit dałoby się wtedy obejść.
+-- ponytail: limit wspólny — atakujący może na 15 min zablokować logowanie (nie zalogowane sesje); limit per IP, gdyby to się zdarzało
 create function public.check_pin(p text) returns text as $fn$
 begin
+  if p ~ '^[0-9a-f]{64}$' then
+    if exists (select 1 from public.admin_sesje
+               where token_hash = encode(sha256(decode(p, 'hex')), 'hex') and expires_at > now()) then return null; end if;
+    return 'Sesja wygasła';
+  end if;
   perform pg_advisory_xact_lock(hashtext('check_pin'));
   if (select count(*) from public.pin_fails where at > now() - interval '15 minutes') >= 20 then
     return 'Za dużo nieudanych prób. Spróbuj za 15 minut.';
@@ -44,8 +72,26 @@ begin
   if exists (select 1 from public.access where pin = p) then return null; end if;
   delete from public.pin_fails where at < now() - interval '1 day';
   insert into public.pin_fails default values;
-  perform pg_sleep(1);
   return 'Zły PIN';
+end $fn$ language plpgsql security definer set search_path = '';
+
+-- PIN → token sesji na 90 dni
+create function public.admin_login(p text) returns jsonb as $fn$
+declare err text; t bytea;
+begin
+  if p ~ '^[0-9a-f]{64}$' then return jsonb_build_object('error', 'Zły PIN'); end if; -- token nie robi nowego tokenu
+  err := public.check_pin(p);
+  if err is not null then return jsonb_build_object('error', err); end if;
+  t := extensions.gen_random_bytes(32);
+  delete from public.admin_sesje where expires_at < now();
+  insert into public.admin_sesje values (encode(sha256(t), 'hex'), now() + interval '90 days');
+  return jsonb_build_object('token', encode(t, 'hex'));
+end $fn$ language plpgsql security definer set search_path = '';
+
+create function public.admin_logout(t text) returns jsonb as $fn$
+begin
+  if t ~ '^[0-9a-f]{64}$' then delete from public.admin_sesje where token_hash = encode(sha256(decode(t, 'hex')), 'hex'); end if;
+  return '{}';
 end $fn$ language plpgsql security definer set search_path = '';
 
 create function public.load_state(p text) returns jsonb as $fn$
@@ -78,5 +124,6 @@ begin
   return '{}';
 end $fn$ language plpgsql security definer set search_path = '';
 
-revoke execute on function public.check_pin(text), public.load_state(text), public.save_state(text, jsonb) from public, anon, authenticated; -- Supabase nadaje anon execute domyślnie
-grant execute on function public.load_state(text), public.save_state(text, jsonb) to anon;
+revoke execute on function public.check_pin(text), public.admin_login(text), public.admin_logout(text), public.load_state(text),
+  public.save_state(text, jsonb) from public, anon, authenticated; -- Supabase nadaje anon execute domyślnie
+grant execute on function public.admin_login(text), public.admin_logout(text), public.load_state(text), public.save_state(text, jsonb) to anon;

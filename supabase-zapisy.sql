@@ -70,7 +70,9 @@ end $fn$ language plpgsql stable security definer set search_path = '';
 
 -- Limity prób (sam PIN: ~30 kont na 10 tys. kombinacji, więc to główna ochrona):
 --   5 złych prób / 15 min z jednego adresu, 100 złych prób / 24 h łącznie → logowanie wstrzymane dla wszystkich
---   (zalogowane sesje działają dalej). Próby po kolei (blokada) z 1 s przerwy po złej, więc równoległość nic nie daje.
+--   (zalogowane sesje działają dalej). Próby po kolei (blokada), więc równoległość nic nie daje.
+-- Bez pg_sleep: przerwanie zapytania (np. statement_timeout) w trakcie czekania cofnęłoby zapis nieudanej próby,
+-- a poprawny PIN wracałby szybciej — limit dałoby się wtedy obejść.
 -- Przy tych limitach trafienie czyjegoś PIN-u to ok. 100 × 30 / 10⁴ ≈ 30% na dobę ciągłego ataku.
 -- ponytail: adres z nagłówków proxy (cf-connecting-ip / x-forwarded-for) da się czasem podrobić — dlatego twardą
 -- granicą jest limit globalny — gdyby to nie wystarczało: logowanie nazwiskiem + PIN-em.
@@ -92,7 +94,6 @@ begin
   if v_pid is null then
     delete from public.zapisy_fails where at < now() - interval '2 days';
     insert into public.zapisy_fails (ip) values (v_ip);
-    perform pg_sleep(1);
     return jsonb_build_object('error', 'Zły PIN');
   end if;
   select e->>'name' into v_name from public.dyzury d, jsonb_array_elements(d.data->'people') e
@@ -229,7 +230,7 @@ begin
   return '{}';
 end $fn$ language plpgsql security definer set search_path = '';
 
--- Dla Układacza (PIN administratora, ten sam limit prób co load_state/save_state)
+-- Dla Układacza (sesja z admin_login albo PIN administratora — patrz check_pin w ukladacz/supabase.sql)
 create function public.admin_konta(p text) returns jsonb as $fn$
 declare err text := public.check_pin(p);
 begin

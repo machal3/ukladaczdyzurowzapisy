@@ -161,7 +161,7 @@ test('limity prób: 5 złych z jednego adresu, osoba usunięta nie wejdzie', asy
   await ip('9.9.9.9');
   assert.match((await call('osoba_login', '3319')).error, /nieaktywne/);
   assert.match((await call('osoba_login', 'abc')).error, /Zły PIN/);
-  // przyspieszenie: pozostałe złe próby wpisane wprost (każda prawdziwa trwa 1 s)
+  // przyspieszenie: pozostałe złe próby wpisane wprost
   await db.query(`insert into public.zapisy_fails (ip) select '9.9.9.9' from generate_series(1, 4)`);
   assert.match((await call('osoba_login', '4043')).error, /Za dużo/);
   await ip('8.8.8.8');
@@ -189,4 +189,30 @@ test('zmiana PIN-u i usunięcie konta unieważniają sesje; tabele zamknięte dl
   for (const f of [`pin_hash('1')`, `osoba_sesja('1')`, `check_pin('1')`, `zapisy_od('{}')`, `zapisy_grafik('{}')`])
     await assert.rejects(db.query(`select public.${f}`), /permission denied/, f);
   assert.match((await call('osoba_login', '0000')).error, /Zły PIN/); // anon może tylko przez funkcje
+});
+
+test('sesja administratora: token zamiast PIN-u, działa mimo wyczerpanego limitu, zmiana PIN-u wylogowuje', async () => {
+  const { call, db } = await setup();
+  assert.match((await call('admin_login', '0000')).error, /Zły PIN/);
+  const { token } = await call('admin_login', ADMIN);
+  assert.match(token, /^[0-9a-f]{64}$/);
+  assert.match((await call('admin_login', token)).error, /Zły PIN/, 'token nie robi nowego tokenu');
+  assert.ok((await call('load_state', token)).data.people);
+  assert.ok((await call('admin_konta', token)).konta);
+  await db.query(`insert into public.pin_fails select from generate_series(1, 20)`);
+  assert.match((await call('admin_login', ADMIN)).error, /Za dużo/);
+  assert.match((await call('load_state', ADMIN)).error, /Za dużo/);
+  assert.ok((await call('load_state', token)).data, 'zalogowany działa dalej');
+  assert.deepEqual(await call('save_state', token, { people: [] }), {});
+  assert.match((await call('load_state', 'f'.repeat(64))).error, /Sesja/);
+  await db.query(`delete from public.pin_fails`);
+  const { token: drugi } = await call('admin_login', ADMIN);
+  await call('admin_logout', drugi);
+  assert.match((await call('load_state', drugi)).error, /Sesja/);
+  await db.query(`update public.access set pin = '7310'`);
+  assert.match((await call('load_state', token)).error, /Sesja/, 'zmiana PIN-u kończy sesje');
+  await db.exec('set role anon');
+  for (const t of ['admin_sesje', 'access', 'pin_fails']) await assert.rejects(db.query(`select * from public.${t}`), /permission/, t);
+  await assert.rejects(db.query(`select public.check_pin('x')`), /permission/);
+  await db.exec('reset role');
 });
