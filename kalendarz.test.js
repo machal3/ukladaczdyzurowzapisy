@@ -37,7 +37,7 @@ test('kolejność miejsc: OITN, PN2, PN1, inne za nimi', () => {
 });
 
 test('termin zapisów i moje dyżury z grafiku', () => {
-  assert.equal(dateKey(...((d) => [d.getFullYear(), d.getMonth(), d.getDate()])(deadline(2027, 0))), '2026-12-20');
+  assert.equal(dateKey(...((d) => [d.getFullYear(), d.getMonth(), d.getDate()])(deadline(2027, 0))), '2026-12-10');
   assert.equal(monthKey(2026, 10), '2026-11');
   const g = { '2026-11-02': { a: 'Anna', b: 'Jan' }, '2026-11-05': { b: 'Anna', x: 'Anna' }, '2026-12-01': { a: 'Anna' } };
   assert.deepEqual(myShifts(g, [{ id: 'a', name: 'OITN' }, { id: 'b', name: 'PN1' }], 'Anna', 2026, 10),

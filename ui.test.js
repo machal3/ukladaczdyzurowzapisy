@@ -18,7 +18,7 @@ async function setup(t, { token = null, prosby = true } = {}) {
   if (token) w.localStorage.setItem('zapisy-token', token);
   const db = { avail: { '2020-01-01': 0 }, wants: { '*': 4 }, uwagi: {}, calls: [], loggedOut: false };
   const now = new Date(), key = (y, m, d) => { const t = new Date(y, m, d); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
-  const od = key(now.getFullYear(), now.getMonth() + (now.getDate() <= 20 ? 1 : 2), 1); // jak zapisy_od w bazie
+  const od = key(now.getFullYear(), now.getMonth() + (now.getDate() <= 10 ? 1 : 2), 1); // jak zapisy_od w bazie
   const cur = (d) => key(now.getFullYear(), now.getMonth(), d);
   db.grafik = { [cur(3)]: { s1: 'Anna Kowalska', s2: 'Jan Nowak' }, [cur(4)]: { s1: 'Jan Nowak' } };
   db.bad = { [cur(3)]: 3 };
@@ -108,11 +108,11 @@ test('powrót na kartę: zmiana administratora z Układacza widoczna i nie nadpi
   assert.equal(s.db.wants['*'], 7);
 });
 
-test('termin 20.: start na pierwszym otwartym miesiącu, wcześniejsze tylko do podglądu', async (t) => {
+test('termin 10.: start na pierwszym otwartym miesiącu, wcześniejsze tylko do podglądu', async (t) => {
   const s = await setup(t, { token: 'a'.repeat(64) });
   await s.done;
   assert.equal(s.$('#calendar [data-avail]').dataset.avail.slice(0, 7), s.od.slice(0, 7));
-  assert.match(s.$('#status').textContent, /zapisy do 20 /);
+  assert.match(s.$('#status').textContent, /zapisy do 10 /);
   for (let i = 0; i < 3 && !s.$('#prev').disabled; i++) s.$('#prev').click();
   assert.equal(s.$('#prev').disabled, true);
   assert.match(s.$('#status').textContent, /Zapisy zamknięte/);

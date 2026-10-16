@@ -106,13 +106,13 @@ begin
   return jsonb_build_object('token', encode(t, 'hex'), 'name', v_name);
 end $fn$ language plpgsql security definer set search_path = '';
 
--- Pierwszy dzień, który osoba może zmieniać: zapisy na miesiąc trwają do 20. dnia poprzedniego miesiąca włącznie
--- (czas polski), więc do 20. otwarty jest następny miesiąc, od 21. — dopiero ten po nim.
+-- Pierwszy dzień, który osoba może zmieniać: zapisy na miesiąc trwają do 10. dnia poprzedniego miesiąca włącznie
+-- (czas polski), więc do 10. otwarty jest następny miesiąc, od 11. — dopiero ten po nim.
 -- data.zapisyOd ('YYYY-MM') z Układacza może zamknąć więcej miesięcy.
--- Prośby (wants) nie są per miesiąc, więc obowiązują od najbliższego miesiąca — po jego terminie (od 21.) są zamknięte do 1.
+-- Prośby (wants) nie są per miesiąc, więc obowiązują od najbliższego miesiąca — po jego terminie (od 11.) są zamknięte do 1.
 create function public.zapisy_od(d jsonb, dzis date default (now() at time zone 'Europe/Warsaw')::date) returns date as $fn$
   select greatest(
-    (date_trunc('month', dzis) + case when extract(day from dzis) <= 20 then interval '1 month' else interval '2 months' end)::date,
+    (date_trunc('month', dzis) + case when extract(day from dzis) <= 10 then interval '1 month' else interval '2 months' end)::date,
     case when d->>'zapisyOd' ~ '^\d{4}-(0[1-9]|1[0-2])$' then (d->>'zapisyOd' || '-01')::date else '-infinity'::date end)
 $fn$ language sql stable set search_path = '';
 revoke execute on function public.zapisy_od(jsonb, date) from public, anon, authenticated;
@@ -192,16 +192,17 @@ begin
     if dt >= od and v::text <> '2' then na := na || jsonb_build_object(k, v); end if;
   end loop;
   allowed := array['*', 'd56']; -- osoba prosi tylko o liczbę łącznie i w So + Nd (WANT_ROWS w kalendarz.js)
-  if od > (date_trunc('month', (now() at time zone 'Europe/Warsaw')::date) + interval '1 month')::date then
-    nw := coalesce(d->'wants'->v_pid, '{}'); -- prośby zamknięte
-  else for k, v in select * from jsonb_each(w) loop
+  for k, v in select * from jsonb_each(w) loop -- sprawdzane zawsze, także gdy prośby są zamknięte
     if not k = any(allowed) then return jsonb_build_object('error', 'Nieznana prośba'); end if;
     if jsonb_typeof(v) = 'null' then continue; end if;
     if jsonb_typeof(v) <> 'number' or v::text !~ '^\d{1,2}$' or v::text::int > 31 then
       return jsonb_build_object('error', 'Prośba musi być liczbą 0–31');
     end if;
     nw := nw || jsonb_build_object(k, v);
-  end loop; end if;
+  end loop;
+  if od > (date_trunc('month', (now() at time zone 'Europe/Warsaw')::date) + interval '1 month')::date then
+    nw := coalesce(d->'wants'->v_pid, '{}'); -- prośby zamknięte: zostają z bazy
+  end if;
   for k, v in select * from jsonb_each(coalesce(d->'uwagi'->v_pid, '{}')) loop
     if k < m0 then nc := nc || jsonb_build_object(k, v); end if;
   end loop;

@@ -72,12 +72,13 @@ test('logowanie PIN-em, sesja i dane tylko tej osoby', async () => {
   assert.match((await call('osoba_load', token)).error, /Sesja/);
 });
 
-test('termin: miesiąc otwarty do 20. dnia poprzedniego miesiąca', async () => {
+test('termin: miesiąc otwarty do 10. dnia poprzedniego miesiąca', async () => {
   const { db } = await setup();
   const od = async (dzis, d = {}) => (await db.query(`select to_char(public.zapisy_od($1, $2::date), 'YYYY-MM-DD') as r`, [d, dzis])).rows[0].r;
   assert.equal(await od('2026-10-01'), '2026-11-01');
-  assert.equal(await od('2026-10-20'), '2026-11-01');
-  assert.equal(await od('2026-10-21'), '2026-12-01');
+  assert.equal(await od('2026-10-10'), '2026-11-01');
+  assert.equal(await od('2026-10-11'), '2026-12-01');
+  assert.equal(await od('2026-10-20'), '2026-12-01');
   assert.equal(await od('2026-12-25'), '2027-02-01');
   assert.equal(await od('2026-10-05', { zapisyOd: '2027-01' }), '2027-01-01');
   assert.equal(await od('2026-10-05', { zapisyOd: '2026-01' }), '2026-11-01');
@@ -94,7 +95,7 @@ test('zapis: walidacja, zamknięte miesiące nietykalne, inne pola stanu bez zmi
     { [closed.slice(0, 7)]: 'po terminie', [om]: 'wolę OITN', [month(3)]: '   ' }), {});
   const after = await state();
   assert.deepEqual(after.avail.ania, { [day(-3)]: 0, [od]: 0, [plus(od, 2)]: 4 }); // zamknięte z bazy, „Mogę” bez wpisu
-  assert.deepEqual(after.wants.ania, prosby ? { d56: 3, '*': 5 } : {}); // od 21. prośby zamknięte (test niżej)
+  assert.deepEqual(after.wants.ania, prosby ? { d56: 3, '*': 5 } : {}); // od 11. prośby zamknięte (test niżej)
   assert.deepEqual(after.uwagi.ania, { [om]: 'wolę OITN' }); // zamknięty miesiąc i puste pominięte
   assert.ok(after.stamps.ania);
   for (const k of ['people', 'shifts', 'limits', 'mins', 'rules', 'schedule', 'availAdm', 'wantsAdm']) assert.deepEqual(after[k], before[k], k);
@@ -117,10 +118,10 @@ test('po terminie najbliższego miesiąca prośby i komentarze zamkniętych mies
   const s = await state();
   s.wants.ania = { oitn: 2 };
   s.uwagi = { ania: { [month(2)]: 'stary' } };
-  s.zapisyOd = month(3); // Układacz zamknął zapisy do month(3) — jak po 20. dla najbliższego miesiąca
+  s.zapisyOd = month(3); // Układacz zamknął zapisy do month(3) — jak po 10. dla najbliższego miesiąca
   await db.query('select public.save_state($1, $2)', [ADMIN, s]);
   assert.equal((await call('osoba_load', token)).prosby, false);
-  assert.deepEqual(await call('osoba_save', token, {}, { oitn: 9 }, { [month(2)]: 'nowy', [month(3)]: 'ok' }), {});
+  assert.deepEqual(await call('osoba_save', token, {}, { d56: 9 }, { [month(2)]: 'nowy', [month(3)]: 'ok' }), {});
   const after = await state();
   assert.deepEqual(after.wants.ania, { oitn: 2 });
   assert.deepEqual(after.uwagi.ania, { [month(2)]: 'stary', [month(3)]: 'ok' });

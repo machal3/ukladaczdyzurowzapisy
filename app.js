@@ -135,7 +135,7 @@ function renderGrafik() {
 
 function render() { renderMonth(); renderAvail(); renderGrafik(); }
 
-// Prośby nie są per miesiąc — po terminie najbliższego miesiąca (od 21.) zamknięte do 1. (pilnuje baza: me.prosby)
+// Prośby nie są per miesiąc — po terminie najbliższego miesiąca (od 11.) zamknięte do 1. (pilnuje baza: me.prosby)
 const wantsOpen = me.prosby !== false;
 function renderWants() {
   const row = (r) => `<tr><th scope="row">${esc(r.label)}${r.hint ? `<small>${r.hint}</small>` : ''}</th>` +

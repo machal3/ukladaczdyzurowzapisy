@@ -4,10 +4,10 @@ Osobna aplikacja dla osób dyżurujących, do [Układacza dyżurów](https://git
 Każda osoba loguje się **własnym 4-cyfrowym PIN-em** i może:
 
 - zaznaczyć w kalendarzu, kiedy może / chce / musi / nie może dyżurować (te same poziomy co w Układaczu) —
-  **na dany miesiąc do 20. dnia poprzedniego miesiąca**, później miesiąc jest tylko do podglądu,
+  **na dany miesiąc do 10. dnia poprzedniego miesiąca**, później miesiąc jest tylko do podglądu,
 - zostawić **komentarz** do swoich dyżurów w danym miesiącu (do 500 znaków, w tym samym terminie co dostępność),
 - ustawić swoje **prośby**: ile dyżurów chce łącznie i ile z nich w soboty i niedziele — obowiązują od
-  najbliższego miesiąca, więc od 21. do końca miesiąca są zamknięte,
+  najbliższego miesiąca, więc od 11. do końca miesiąca są zamknięte,
 - obejrzeć **grafik** miesięcy oznaczonych w Układaczu jako „Gotowe” (od poprzedniego miesiąca) — swoje dyżury podświetlone, filtr „Tylko moje”, dni w kolorach gównianości jak w Układaczu.
 
 Nie widzi swoich limitów ani minimów, korekt administratora, dostępności i próśb innych ani warunków — te dane w ogóle
@@ -23,7 +23,7 @@ nie wychodzą z bazy. Z grafiku dostaje tylko imiona na miejscach i gównianoś�
 | PIN | w bazie tylko HMAC-SHA256 z losowym pepperem (`zapisy_sekret`); unikalny. Do przeglądarki nie wraca i nie jest w niej zapisywany. |
 | Sesja | po zalogowaniu losowy token (32 bajty) w `localStorage`, w bazie jego sha256; ważny 90 dni. Wyloguj / nowy PIN / usunięcie konta lub osoby = koniec sesji. |
 | Zgadywanie PIN-u | 5 złych prób / 15 min z jednego adresu, 100 złych prób / 24 h łącznie → logowanie wstrzymane (zalogowani pracują dalej), 1 s przerwy po złej próbie, próby po kolei. Szansa trafienia czyjegoś PIN-u przy ciągłym ataku ≈ 30% na dobę (4 cyfry, ~30 kont) — PIN chroni przed przypadkiem, nie przed uporem. |
-| Zapis | serwer sprawdza każdą datę (format, miesiąc otwarty — termin 20. dnia poprzedniego miesiąca, opcjonalnie `zapisyOd` — ≤ 400 dni naprzód), komentarze (miesiąc otwarty, ≤ 500 znaków), prośby (zamknięte od 21. do końca miesiąca), poziom 0–4, klucze próśb (tylko id miejsc i `* we d56 d4 d5 d6`), wartości 0–31. Przeszłe dni zostają takie, jakie były. |
+| Zapis | serwer sprawdza każdą datę (format, miesiąc otwarty — termin 10. dnia poprzedniego miesiąca, opcjonalnie `zapisyOd` — ≤ 400 dni naprzód), komentarze (miesiąc otwarty, ≤ 500 znaków), prośby (zamknięte od 11. do końca miesiąca), poziom 0–4, klucze próśb (tylko `*` i `d56`), wartości 0–31. Przeszłe dni zostają takie, jakie były. |
 | Przeglądarka | CSP w `vercel.json` (skrypty tylko własne, połączenia tylko do Supabase), `no-referrer`, `nosniff`; tekst z bazy zawsze przez `esc()`/`textContent`. |
 | Korekty administratora | Układacz nie zmienia wpisów osoby: swoje zmiany dostępności i próśb trzyma obok, w `data.availAdm`/`data.wantsAdm`. Mają pierwszeństwo przy układaniu, ale `osoba_load` ich nie wysyła — osoba widzi tylko to, co sama wpisała (`sql.test.js`). |
 | Konflikty z Układaczem | Zapisy ustawiają `data.stamps[pid]`; zmieniony `save_state` Układacza nie nadpisuje zmian osoby, których jeszcze nie wczytał (`ukladacz/supabase.sql`). |

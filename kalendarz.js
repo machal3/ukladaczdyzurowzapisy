@@ -53,8 +53,8 @@ const SHIFT_ORDER = ['OITN', 'PN2', 'PN1'];
 const shiftRank = (s) => { const i = SHIFT_ORDER.indexOf(String(s.name).trim().toUpperCase()); return i < 0 ? SHIFT_ORDER.length : i; };
 export const sortShifts = (shifts) => [...shifts].sort((a, b) => shiftRank(a) - shiftRank(b));
 
-// Termin zapisów na miesiąc m: 20. dzień poprzedniego miesiąca (włącznie). Pilnuje go baza (zapisy_od), tu tylko do opisu.
-export const deadline = (y, m) => new Date(y, m - 1, 20);
+// Termin zapisów na miesiąc m: 10. dzień poprzedniego miesiąca (włącznie). Pilnuje go baza (zapisy_od), tu tylko do opisu.
+export const deadline = (y, m) => new Date(y, m - 1, 10);
 export const monthKey = (y, m) => dateKey(y, m, 1).slice(0, 7);
 
 // Moje dyżury w miesiącu z grafiku { dzień: { id miejsca: imię } }: [{ d, wd, shift }]
