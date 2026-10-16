@@ -1,7 +1,7 @@
 // Zapisy na dyżury: osoba (4-cyfrowy PIN) ustawia własną dostępność, prośby i komentarze do miesięcy
 // oraz ogląda grafik (same imiona na miejscach). Limity, minima i dostępność innych zostają w bazie (supabase-zapisy.sql).
 import { dateKey, daysInMonth, weekday, LEVELS, BAD, badOf, availOf, setLevel, nextLevel, monthSummary, wantRows, parseWant, deadline, monthKey, myShifts } from './kalendarz.js';
-import { hasSession, login, load, logout, save, SessionError } from './api.js';
+import { hasSession, login, load, logout, save, busy, SessionError } from './api.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -229,6 +229,21 @@ function showTab(next) {
 $('.tabs').onclick = (e) => { const t = e.target.closest('[data-tab]'); if (t) showTab(t.dataset.tab); };
 $('#app-settings-open').onclick = () => $('#app-settings').showModal();
 $('#logout').onclick = async () => { await logout(); location.reload(); };
+
+// Powrót na kartę: świeże wpisy z bazy — administrator mógł zmienić je w Układaczu jawnie (przełącznik „Wpis osoby”),
+// a zapis ze starego stanu nadpisałby jego zmianę. Nie w trakcie zapisu ani malowania; pól w trakcie pisania nie przebudowujemy.
+// ponytail: grafik i termin zostają z pierwszego wczytania — po zmianie widać je po przeładowaniu strony
+document.addEventListener('visibilitychange', async () => {
+  if (document.hidden || busy() || paint) return;
+  let d;
+  try { d = await load(); } catch (e) { if (e instanceof SessionError) location.reload(); return; }
+  if (busy()) return; // osoba zdążyła coś zmienić — jej zmiana jest nowsza
+  ({ avail, wants } = d);
+  uwagi = d.uwagi ?? {};
+  if (!$('#wants').contains(document.activeElement)) renderWants();
+  if (document.activeElement !== $('#comment-text')) delete $('#comment-text').dataset.month;
+  render();
+});
 
 $('#me').textContent = me.name;
 renderWants();

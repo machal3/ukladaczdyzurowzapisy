@@ -90,6 +90,24 @@ test('kalendarz: klik zmienia poziom i zapisuje; brak limitów i innych osób w 
   assert.equal(s.$('#save-state').textContent, 'Zapisano');
 });
 
+test('powrót na kartę: zmiana administratora z Układacza widoczna i nie nadpisana starym stanem', async (t) => {
+  const s = await setup(t, { token: 'a'.repeat(64) });
+  await s.done;
+  const key = s.$('#calendar [data-avail]:enabled').dataset.avail;
+  s.db.avail = { ...s.db.avail, [key]: 4 }; // administrator wpisał jawnie „Muszę”
+  s.db.wants = { '*': 7 };
+  s.w.document.dispatchEvent(new s.w.Event('visibilitychange'));
+  for (let i = 0; i < 5; i++) await s.tick();
+  assert.equal(s.$(`[data-avail="${key}"]`).textContent, 'Muszę');
+  assert.equal(s.$('[data-want="*"]').value, '7');
+  const other = s.w.document.querySelectorAll('#calendar [data-avail]:enabled')[1];
+  other.click(); // zmiana osoby zapisuje całość — z wpisem administratora
+  await s.wait(450);
+  await s.tick();
+  assert.equal(s.db.avail[key], 4);
+  assert.equal(s.db.wants['*'], 7);
+});
+
 test('termin 20.: start na pierwszym otwartym miesiącu, wcześniejsze tylko do podglądu', async (t) => {
   const s = await setup(t, { token: 'a'.repeat(64) });
   await s.done;

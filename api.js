@@ -47,4 +47,5 @@ export function save(avail, wants, uwagi, onState) {
       .then(() => { if (pending === 1) onState('saved'); }, onState).finally(() => pending--);
   }, 400);
 }
+export const busy = () => pending > 0; // są zmiany czekające na zapis
 addEventListener('beforeunload', (e) => { if (pending) e.preventDefault(); }); // niewysłane zmiany → przeglądarka pyta
