@@ -1,9 +1,15 @@
 /* Dodatki Zapisów do style.css (kopia z Układacza — tamten plik zmieniaj tylko kopiując go ponownie). */
 /* imię w tej samej linii co tytuł: wyższy nagłówek zasłaniałby przyklejony pasek (#status.pinned ma top = wysokość nagłówka) */
 #me { min-width: 0; max-width: 40%; font: var(--type-title); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#save-state { font: var(--type-label); color: var(--muted); white-space: nowrap; }
-#save-state.saved { color: var(--strong); }
-#save-state.error { color: var(--warn); white-space: normal; max-width: 24ch; }
+/* Wskaźnik zapisu: pulsująca kropka → ✓, który znika; błąd = ! + tekst. Bez animacji (reduced motion) ✓ zostaje. */
+#save-state { display: flex; align-items: center; gap: 6px; min-width: 20px; font: var(--type-label); color: var(--warn); }
+#save-state::before { flex: none; width: 20px; height: 20px; background: var(--strong); }
+#save-state.saving::before { content: ''; mask: radial-gradient(circle, #000 4px, transparent 4.5px); animation: save-pulse 900ms ease-in-out infinite alternate; }
+#save-state.saved::before { content: ''; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; animation: save-done 1800ms var(--motion) forwards; }
+#save-state.error { max-width: 24ch; }
+#save-state.error::before { content: '!'; border-radius: 50%; background: var(--warn); color: var(--md-sys-color-on-error); font: 700 13px/20px var(--headline); text-align: center; }
+@keyframes save-pulse { from { opacity: .35; transform: scale(.7); } to { opacity: 1; transform: scale(1.1); } }
+@keyframes save-done { from { opacity: 0; transform: scale(.4); } 15%, 70% { opacity: 1; transform: none; } to { opacity: 0; } }
 #status .summary { display: flex; flex-wrap: wrap; gap: 6px; }
 .cell.past { opacity: .5; }
 .cell.past .avail { cursor: default; }

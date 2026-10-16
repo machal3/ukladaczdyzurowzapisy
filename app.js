@@ -149,7 +149,9 @@ function showSave(st) {
   const el = $('#save-state');
   if (st instanceof SessionError) { location.reload(); return; } // ekran PIN-u; niezapisana zmiana przepada, komunikat pokaże logowanie
   el.className = st instanceof Error ? 'error' : st;
-  el.textContent = st === 'saving' ? 'Zapisuję…' : st === 'saved' ? 'Zapisano' : `Nie zapisano: ${st.message}`;
+  // zapis i sukces widać jako kropkę / ✓ (zapisy.css), tekst tylko dla czytnika; błąd zostaje widoczny
+  el.innerHTML = st instanceof Error ? esc(`Nie zapisano: ${st.message}`)
+    : `<span class="sr-only">${st === 'saving' ? 'Zapisuję…' : 'Zapisano'}</span>`;
 }
 const persist = () => save(avail, wants, uwagi, showSave);
 
