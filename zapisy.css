@@ -10,7 +10,7 @@ html, body { overscroll-behavior: none; overflow-x: clip; }
 #save-state.saving::before { content: ''; mask: radial-gradient(circle, #000 4px, transparent 4.5px); animation: save-pulse 900ms ease-in-out infinite alternate; }
 #save-state.saved::before { content: ''; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; animation: save-done 1800ms var(--motion) forwards; }
 #save-state.error { max-width: 24ch; }
-#save-state.error::before { content: '!'; border-radius: 50%; background: var(--warn); color: var(--md-sys-color-on-error); font: 700 13px/20px var(--headline); text-align: center; }
+#save-state.error::before { content: '!'; border-radius: 50%; background: var(--warn); color: var(--md-sys-color-on-error); font: 700 15px/20px var(--headline); text-align: center; }
 @keyframes save-pulse { from { opacity: .35; transform: scale(.7); } to { opacity: 1; transform: scale(1.1); } }
 @keyframes save-done { from { opacity: 0; transform: scale(.4); } 15%, 70% { opacity: 1; transform: none; } to { opacity: 0; } }
 #status .summary { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -19,7 +19,7 @@ html, body { overscroll-behavior: none; overflow-x: clip; }
 .avail:enabled { cursor: pointer; }
 #wants .counts :is(th, td) { text-align: left; }
 #wants .counts th[scope=row] { font-weight: 500; }
-#wants .counts th small, #wants .counts thead small { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
+#wants .counts th small, #wants .counts thead small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
 #wants .counts tr > :last-child { width: 96px; text-align: center; }
 #wants .counts input { width: 100%; max-width: 80px; min-height: 44px; padding: 8px; text-align: center; }
 #wants .counts input:invalid { outline: 2px solid var(--warn); }
@@ -44,7 +44,7 @@ body:not([data-tab=grafik]) #grafik-tab { display: none; }
 #status .who { min-width: 0; }
 /* Pasek „Dostępność”: same przyciski poziomów w jednej linii (Muszę → Nie mogę, Po kolei), termin z prawej */
 #status:not(.closed) { flex-wrap: nowrap; padding: 8px 12px 8px 8px; }
-#status:not(.closed) .cycle { flex: 0 1 auto; flex-wrap: nowrap; order: 0; gap: 4px; min-width: 0; margin: 0; padding: 0; overflow: visible; } /* bije #status.pinned .cycle ze style.css */
+#status:not(.closed) .cycle { flex: 0 1 auto; flex-wrap: nowrap; order: 0; gap: 10px; min-width: 0; margin: 0; padding: 0; overflow: visible; } /* bije #status.pinned .cycle ze style.css */
 #status .cycle .brush { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 12px 6px 10px; white-space: nowrap; }
 #status .cycle .brush svg { width: 16px; height: 16px; }
 #status .cycle .brush[aria-pressed=true] svg { stroke-width: 2.6; }
@@ -57,8 +57,9 @@ body:not([data-tab=grafik]) #grafik-tab { display: none; }
 }
 @media (max-width: 760px) {
   #status:not(.closed) { gap: 8px; padding: 6px 8px 6px 6px; }
-  #status:not(.closed) .cycle { gap: 2px; }
-  #status .cycle .brush { width: 36px; min-height: 36px; }
+  #status:not(.closed) .cycle { gap: 8px; }
+  #status .cycle .brush[aria-pressed=true] { outline-offset: 1px; } /* obwódka 3 px na zewnątrz < odstęp 8 px */
+  #status .cycle .brush { width: 34px; min-height: 34px; }
   #status:not(.closed) .deadline { margin-left: auto; padding-inline: 8px; }
   #status .deadline .short { display: inline; }
   #status .deadline .long { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
@@ -86,7 +87,7 @@ body:not([data-tab=grafik]) #grafik-tab { display: none; }
 #grafik .slot.mine :is(.slot-label, .slot-name) { color: var(--on-strong); }
 #grafik .slot.mine .slot-name { font-weight: 700; }
 #grafik .cell.has-mine { box-shadow: inset 0 0 0 2px var(--strong); }
-.you { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: var(--shape-full); background: var(--on-strong); color: var(--strong); font: var(--type-label); font-size: 10px; line-height: 16px; vertical-align: 1px; }
+.you { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: var(--shape-full); background: var(--on-strong); color: var(--strong); font: var(--type-label); font-size: 11px; line-height: 16px; vertical-align: 1px; }
 #grafik.only-mine .slot:not(.mine) { visibility: hidden; }
 @media (hover: hover) { #grafik .slot:hover { background: var(--md-sys-color-surface-container-low); } #grafik .slot.mine:hover { background: var(--strong); } }
 @media (max-width: 1099px) {
