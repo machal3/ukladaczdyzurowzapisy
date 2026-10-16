@@ -187,6 +187,18 @@ test('po terminie: prośby i komentarz zamkniętego miesiąca tylko do podglądu
   assert.match(s.$('#wants').textContent, /minął/);
 });
 
+test('„Następne zapisy” wracają z grafiku do pierwszego otwartego miesiąca dostępności', async (t) => {
+  const s = await setup(t, { token: 'a'.repeat(64) });
+  await s.done;
+  const label = s.$('#month-label').textContent;
+  s.$('#next').click(); s.$('#next').click();
+  s.$('button[data-tab="grafik"]').click();
+  s.$('#next-open').click();
+  assert.equal(s.w.document.body.dataset.tab, 'calendar');
+  assert.equal(s.$('#month-label').textContent, label);
+  assert.equal(s.$('#comment-text').disabled, false);
+});
+
 test('wygasła sesja → ekran PIN-u; wylogowanie kasuje sesję w bazie', async (t) => {
   const s = await setup(t, { token: 'b'.repeat(64) });
   for (let i = 0; i < 50 && !s.$('.login [role=status]')?.textContent; i++) await s.tick();

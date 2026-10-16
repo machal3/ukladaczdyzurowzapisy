@@ -32,6 +32,9 @@ html, body { overscroll-behavior: none; overflow-x: clip; }
 
 /* Zakładki: miesiąc tylko przy dostępności i grafiku (prośby obowiązują co miesiąc) */
 body:not([data-tab=calendar], [data-tab=grafik]) .month { display: none; }
+/* „Następne zapisy” wygląda jak „Dzisiaj” w Układaczu */
+#next-open { padding-inline: 18px; background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); }
+@media (max-width: 760px) { #next-open { padding-inline: 12px; } }
 body:not([data-tab=grafik]) #grafik-tab { display: none; }
 #grafik-tab { display: grid; gap: 20px; animation: appear 350ms var(--motion); }
 

@@ -54,8 +54,22 @@ document.addEventListener('pointerdown', (event) => {
 for (const type of ['animationend', 'animationcancel']) document.addEventListener(type, (event) => {
   if (event.target instanceof Element && 'animationName' in event && event.animationName === 'ripple') event.target.classList.remove('rippling');
 });
-const onScroll = () => root.classList.toggle('scrolled', scrollY > 16);
+// Dolny pasek na telefonie jak w większości aplikacji: chowa się przy przewijaniu w dół, wraca przy przewijaniu w górę,
+// na samej górze i na końcu strony. Próg 8 px pomija drgania palca i „gumkę” iOS.
+let lastY = scrollY, fromTab = false;
+const onScroll = () => {
+  const y = scrollY, dy = y - lastY;
+  root.classList.toggle('scrolled', y > 16);
+  if (fromTab) { fromTab = false; lastY = y; return; } // skok do zapamiętanego miejsca karty nie chowa paska, który właśnie kliknięto
+  if (y < 56 || innerHeight + y >= document.documentElement.scrollHeight - 2) root.classList.remove('nav-hidden');
+  else if (Math.abs(dy) > 8) root.classList.toggle('nav-hidden', dy > 0);
+  else return;
+  lastY = y;
+};
 addEventListener('scroll', onScroll, { passive: true });
+document.addEventListener('click', (event) => {
+  if (event.target instanceof Element && event.target.closest('.tabs, #help-open')) { fromTab = true; root.classList.remove('nav-hidden'); }
+}, true);
 onScroll();
 
 // Pływające etykiety bez zmiany kontrolek i powiązanych z nimi zdarzeń.

@@ -55,4 +55,4 @@ npm run lint
 | `kalendarz.js` | czyste funkcje; `dateKey`/`daysInMonth`/`weekday`/`LEVELS` skopiowane z `scheduler.js` Układacza — muszą zostać zgodne |
 | `supabase-zapisy.sql` | tabele kont i sesji, funkcje `osoba_*` i `admin_*` |
 | `ukladacz/` | zmiany dla Układacza: `supabase.sql` z nowym `save_state` i `PROMPT.md` |
-| `style.css`, `theme.css`, `theme-init.js`, `ui.js`, `fonts/`, `icon.svg` | **kopie z Układacza** — przy zmianie wyglądu tam skopiuj je ponownie; dodatki tylko w `zapisy.css` |
+| `style.css`, `theme.css`, `theme-init.js`, `ui.js`, `fonts/` | **kopie z Układacza** — przy zmianie wyglądu tam skopiuj je ponownie; dodatki tylko w `zapisy.css`. `icon.svg` i logo w `index.html` są własne (kalendarz z ptaszkiem), nie kopiuj ich z Układacza |

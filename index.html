@@ -18,19 +18,19 @@
 </head>
 <body data-tab="calendar">
   <a class="skip-link" href="#main">Przejdź do treści</a>
-  <header class="app-header"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h6v8H3V5a2 2 0 0 1 2-2Zm8 0h6a2 2 0 0 1 2 2v6h-8ZM3 13h8v8H5a2 2 0 0 1-2-2Zm10 0h8v6a2 2 0 0 1-2 2h-6Z"/></svg><h1>Zapisy na dyżury</h1><p id="me"></p><p id="save-state" role="status" aria-live="polite"></p><button id="app-settings-open" class="ghost" type="button" aria-label="Ustawienia i wylogowanie" title="Ustawienia i wylogowanie"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg></button></header>
+  <header class="app-header"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M7 2h2v2H7Zm8 0h2v2h-2ZM5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm2.5 10.5L9 13l2 2 4.5-4.5L17 12l-6 6Z"/></svg><h1>Zapisy na dyżury</h1><p id="me"></p><p id="save-state" role="status" aria-live="polite"></p><button id="help-open" class="ghost" type="button" data-tab="help" aria-pressed="false" aria-label="Instrukcja" title="Instrukcja"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button><button id="app-settings-open" class="ghost" type="button" aria-label="Ustawienia i wylogowanie" title="Ustawienia i wylogowanie"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg></button></header>
   <div class="bar">
     <nav class="tabs" aria-label="Widok">
-      <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h6v8H3V5a2 2 0 0 1 2-2Zm8 0h6a2 2 0 0 1 2 2v6h-8ZM3 13h8v8H5a2 2 0 0 1-2-2Zm10 0h8v6a2 2 0 0 1-2 2h-6Z"/></svg></div>
+      <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M7 2h2v2H7Zm8 0h2v2h-2ZM5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm2.5 10.5L9 13l2 2 4.5-4.5L17 12l-6 6Z"/></svg></div>
       <button class="ghost" data-tab="calendar" aria-pressed="true"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M8 13h.01"/><path d="M12 13h.01"/><path d="M16 13h.01"/><path d="M8 17h.01"/><path d="M12 17h.01"/><path d="M16 17h.01"/></svg></span><span>Dostępność</span></button>
       <button class="ghost" data-tab="grafik" aria-pressed="false"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/></svg></span><span>Grafik</span></button>
       <button class="ghost" data-tab="settings" aria-pressed="false"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg></span><span>Prośby</span></button>
-      <button class="ghost" data-tab="help" aria-pressed="false"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span><span>Instrukcja</span></button>
     </nav>
     <nav class="month" aria-label="Miesiąc">
       <button id="prev" class="ghost" aria-label="Poprzedni miesiąc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
       <h2 id="month-label" aria-live="polite"></h2>
       <button id="next" class="ghost" aria-label="Następny miesiąc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+      <button id="next-open" class="ghost" title="Najbliższy miesiąc z otwartymi zapisami">Następne zapisy</button>
     </nav>
   </div>
 
@@ -40,7 +40,6 @@
     <div class="board">
       <section id="comment" class="panel comment" aria-labelledby="comment-title">
         <h3><label for="comment-text" id="comment-title"></label></h3>
-        <p class="lead">Np. zamiany, preferowane miejsca, urlop w części dnia. Widzi go tylko osoba układająca grafik.</p>
         <textarea id="comment-text" rows="2" maxlength="500" placeholder="Brak komentarza — widzi go tylko osoba układająca grafik" aria-describedby="comment-count"></textarea>
         <p id="comment-count" class="hint" aria-live="polite"></p>
       </section>
@@ -59,7 +58,6 @@
     <section id="settings" class="settings" aria-label="Prośby">
       <div class="panel" id="panel-wants">
         <h3>Moje prośby</h3>
-        <p class="lead">Ile dyżurów <b>chcesz</b> w miesiącu. Prośba obowiązuje w każdym miesiącu, aż ją zmienisz. Puste pole = brak prośby.</p>
         <form id="wants" autocomplete="off"></form>
         <p class="hint">Prośba to cel, nie gwarancja: układanie stara się trafić dokładnie w liczbę (ani mniej, ani więcej), ale pierwszeństwo mają zasady grafiku i obsada wszystkich dyżurów.</p>
       </div>
@@ -92,7 +90,7 @@
       </section>
       <section>
         <h3>3. Prośby</h3>
-        <p>Ile dyżurów chcesz w miesiącu łącznie i ile z nich w soboty i niedziele. O resztę (np. konkretne miejsca) poproś osobę układającą grafik. Prośba jest miękka — układanie stara się ją spełnić, ale nie zawsze się da.</p>
+        <p>Ile dyżurów chcesz w miesiącu łącznie i ile z nich w soboty i niedziele.</p>
       </section>
       <section>
         <h3>4. Konto</h3>
@@ -104,16 +102,19 @@
   <dialog id="app-settings" aria-labelledby="app-settings-title">
     <form method="dialog">
       <h3 id="app-settings-title">Ustawienia</h3>
-      <div class="app-row"><div><h4>Ciemny motyw</h4><p class="hint">Zapamiętany w tej przeglądarce.</p></div><button id="theme-toggle" class="ghost" type="button" aria-label="Włącz ciemny motyw" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg></button></div>
-      <div class="app-row"><div><h4>Kolor motywu</h4><p class="hint">Palety Material Design 3.</p></div>
-        <div class="swatches" role="radiogroup" aria-label="Kolor motywu">
-          <button class="swatch" type="button" data-color-theme-pick="zielony" style="--swatch: #226a4c" role="radio" aria-label="Zielony"></button>
-          <button class="swatch" type="button" data-color-theme-pick="niebieski" style="--swatch: #4b5c92" role="radio" aria-label="Niebieski"></button>
-          <button class="swatch" type="button" data-color-theme-pick="fioletowy" style="--swatch: #65558f" role="radio" aria-label="Fioletowy"></button>
-          <button class="swatch" type="button" data-color-theme-pick="bursztynowy" style="--swatch: #865319" role="radio" aria-label="Bursztynowy"></button>
+      <div class="app-row"><h4>Ciemny motyw</h4><button id="theme-toggle" class="ghost" type="button" aria-label="Włącz ciemny motyw" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg></button></div>
+      <div class="app-row app-row-stack"><h4 id="color-theme-label">Kolor</h4>
+        <div class="swatches" role="radiogroup" aria-labelledby="color-theme-label">
+          <button class="swatch" type="button" data-color-theme-pick="zielony" style="--swatch: #226a4c" role="radio" aria-label="Zielony" title="Zielony"></button>
+          <button class="swatch" type="button" data-color-theme-pick="niebieski" style="--swatch: #4b5c92" role="radio" aria-label="Niebieski" title="Niebieski"></button>
+          <button class="swatch" type="button" data-color-theme-pick="fioletowy" style="--swatch: #65558f" role="radio" aria-label="Fioletowy" title="Fioletowy"></button>
+          <button class="swatch" type="button" data-color-theme-pick="bursztynowy" style="--swatch: #865319" role="radio" aria-label="Bursztynowy" title="Bursztynowy"></button>
+          <button class="swatch" type="button" data-color-theme-pick="czerwony" style="--swatch: #904a42" role="radio" aria-label="Czerwony" title="Czerwony"></button>
+          <button class="swatch" type="button" data-color-theme-pick="rozowy" style="--swatch: #8b4a62" role="radio" aria-label="Różowy" title="Różowy"></button>
+          <button class="swatch" type="button" data-color-theme-pick="turkusowy" style="--swatch: #006a6a" role="radio" aria-label="Turkusowy" title="Turkusowy"></button>
         </div>
       </div>
-      <div class="app-row"><div><h4>Konto</h4><p class="hint">Wylogowanie kończy sesję na tym urządzeniu.</p></div><button id="logout" type="button" class="ghost outline">Wyloguj</button></div>
+      <div class="app-row"><h4>Konto</h4><button id="logout" type="button" class="ghost outline">Wyloguj</button></div>
       <menu><button>Zamknij</button></menu>
     </form>
   </dialog>

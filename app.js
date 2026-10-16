@@ -78,8 +78,7 @@ function renderMonth() {
   if (!v) return;
   $('#month-label').textContent = monthName(v);
   $('#prev').disabled = cmp(v, range[tab()][0]) <= 0;
-  $('#next').disabled = cmp(v, range[tab()][1]) >= 0;
-}
+  $('#next').disabled = cmp(v, range[tab()][1]) >= 0;}
 
 function renderAvail() {
   const v = views.calendar, { y, m } = v, isOpen = cmp(v, open) >= 0;
@@ -224,6 +223,8 @@ $('#only-mine').onclick = () => { onlyMine = !onlyMine; renderGrafik(); };
 const step = (n) => { const t = tab(); if (!views[t]) return; views[t] = shift(views[t], n); render(); };
 $('#prev').onclick = () => step(-1);
 $('#next').onclick = () => step(1);
+// „Następne zapisy” (jak „Dzisiaj” w Układaczu): pierwszy miesiąc otwarty na zapisy, z każdej zakładki z miesiącem
+$('#next-open').onclick = () => { views.calendar = open; showTab('calendar'); renderAvail(); };
 
 const scrolls = {};
 function showTab(next) {
@@ -235,6 +236,7 @@ function showTab(next) {
   scrollTo({ top: scrolls[next] ?? 0, behavior: 'instant' });
 }
 $('.tabs').onclick = (e) => { const t = e.target.closest('[data-tab]'); if (t) showTab(t.dataset.tab); };
+$('#help-open').onclick = () => showTab(tab() === 'help' ? 'calendar' : 'help'); // ponytail: ponowny klik wraca do dostępności, nie do poprzedniej karty
 $('#app-settings-open').onclick = () => $('#app-settings').showModal();
 $('#logout').onclick = async () => { await logout(); location.reload(); };
 
