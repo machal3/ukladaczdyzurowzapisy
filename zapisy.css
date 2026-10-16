@@ -1,4 +1,7 @@
 /* Dodatki Zapisów do style.css (kopia z Układacza — tamten plik zmieniaj tylko kopiując go ponownie). */
+/* strona stoi w miejscu: bez „gumowego” odbijania na końcu przewijania (telefon) i bez przesuwania na boki;
+   clip zamiast hidden — nie psuje przyklejonego nagłówka i paska (sticky) */
+html, body { overscroll-behavior: none; overflow-x: clip; }
 /* imię w tej samej linii co tytuł: wyższy nagłówek zasłaniałby przyklejony pasek (#status.pinned ma top = wysokość nagłówka) */
 #me { min-width: 0; max-width: 40%; font: var(--type-title); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Wskaźnik zapisu: pulsująca kropka → ✓, który znika; błąd = ! + tekst. Bez animacji (reduced motion) ✓ zostaje. */
